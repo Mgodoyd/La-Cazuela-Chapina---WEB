@@ -1,11 +1,17 @@
-import { Navigate } from "react-router-dom";
-import { useAppSelector } from "../store/hooks";
-import { selectIsAuthenticated, selectRole } from "../store/authSlice";
+import type { ReactNode } from 'react';
+import { useAppSelector } from '../../global';
+import Login from './LoginRegister';
 
-export default function ProtectedRoute({ children, allow }: { children: React.ReactElement; allow: (role: string | null) => boolean }) {
-  const isAuth = useAppSelector((s) => selectIsAuthenticated(s as any));
-  const role = useAppSelector((s) => selectRole(s as any));
-  if (!isAuth) return <Navigate to="/login-venta" replace />;
-  if (!allow(role)) return <Navigate to="/" replace />;
-  return children;
+interface ProtectedRouteProps {
+  children: ReactNode;
+}
+
+export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const { token, user } = useAppSelector((state) => state.auth);
+
+  if (!token || !user) {
+    return <Login />;
+  }
+
+  return <>{children}</>;
 } 
