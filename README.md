@@ -240,23 +240,6 @@ interface AuthState {
 - **Fechas**: Validación de expiración
 - **Longitud**: Límites apropiados por campo
 
-## 🐛 **Problemas Resueltos**
-
-### **❌ Productos Customizables Mostrando ID**
-- **Problema**: Los tamales y bebidas personalizados mostraban ID en lugar del nombre
-- **Causa**: Backend no almacena `productName`, solo `productId`
-- **Solución**: Sistema de caché local + resolución inteligente de nombres
-
-### **❌ Refresh Token con Headers**
-- **Problema**: Endpoint `/user/refresh` recibía token en header
-- **Causa**: Configuración incorrecta en `ApiService`
-- **Solución**: Modificación para enviar solo en body sin headers
-
-### **❌ Validaciones de Formulario Inconsistentes**
-- **Problema**: Campos permitían caracteres inválidos
-- **Causa**: Falta de validación en tiempo real
-- **Solución**: Sistema de validación por tipo de campo
-
 ## 📈 **Métricas y Monitoreo**
 
 ### **Logs Implementados**
@@ -272,32 +255,6 @@ interface AuthState {
 - Tracking de operaciones asíncronas
 - Estadísticas de caché
 
-## 🚀 **Roadmap Futuro**
-
-### **Próximas Funcionalidades**
-- [ ] PWA (Progressive Web App)
-- [ ] Notificaciones push
-- [ ] Modo offline
-- [ ] Analytics integrado
-- [ ] Tests automatizados
-- [ ] CI/CD pipeline
-
-### **Optimizaciones Planeadas**
-- [ ] Code splitting avanzado
-- [ ] Service Workers
-- [ ] Image optimization
-- [ ] Bundle size optimization
-- [ ] Performance monitoring
-
-## 👥 **Contribución**
-
-### **Desarrollo**
-1. Fork del repositorio
-2. Crear branch feature (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit changes (`git commit -am 'Add nueva funcionalidad'`)
-4. Push al branch (`git push origin feature/nueva-funcionalidad`)
-5. Crear Pull Request
-
 ### **Reportar Bugs**
 - Usar GitHub Issues
 - Incluir steps para reproducir
@@ -310,6 +267,6 @@ Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
 
 ---
 
-**Desarrollado con ❤️ para Genesis Tamales**
+**Desarrollado con ❤️ para Cazuela Tamales**
 
 *Última actualización: Agosto 2025*
