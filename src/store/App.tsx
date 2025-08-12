@@ -35,13 +35,10 @@ export default function StoreApp() {
     isTyping,
     sendMessage,
     clearChat,
-    voiceChatState,
-    startVoiceChat,
     startRecording,
     stopRecording,
-    startContinuousChat,
-    stopContinuousChat,
-    playLastAudio,
+    isRecording,
+    isPlaying
   } = useAIChat(token);
 
   // Estado para productos
@@ -176,7 +173,7 @@ export default function StoreApp() {
   };
 
   const startVoiceCall = async () => {
-    if (voiceChatState.isRecording) {
+    if (isRecording) {
       stopRecording();
     } else {
       const success = await startRecording();
@@ -609,87 +606,28 @@ export default function StoreApp() {
               {/* Voice Controls */}
               <div className="flex gap-2 mt-4">
                 <button
-                  onClick={async () => {
-                    if (voiceChatState.isListening) {
-                      stopContinuousChat();
-                    } else {
-                      const success = await startContinuousChat();
-                      if (success) {
-                        toast.success("🗣️ ¡Modo conversación activado!");
-                      }
-                    }
-                  }}
-                  className={`p-2 rounded-xl transition-all ${
-                    voiceChatState.isListening
-                      ? "bg-purple-500 text-white animate-pulse"
-                      : voiceChatState.isConnected
-                      ? "bg-purple-100 hover:bg-purple-200 text-purple-700"
-                      : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  }`}
-                  disabled={!voiceChatState.isConnected}
-                  title={
-                    voiceChatState.isListening
-                      ? "Detener conversación continua"
-                      : "Conversación continua"
-                  }
-                >
-                  {voiceChatState.isListening ? "🗣️" : "💬"}
-                </button>
-
-                <button
                   onClick={startVoiceCall}
                   className={`p-2 rounded-xl transition-all ${
-                    voiceChatState.isRecording
+                    isRecording
                       ? "bg-red-500 text-white animate-pulse"
-                      : voiceChatState.isConnected
-                      ? "bg-green-100 hover:bg-green-200 text-green-700"
-                      : "bg-gray-200 text-gray-400"
+                      : "bg-green-100 hover:bg-green-200 text-green-700"
                   }`}
                   title={
-                    voiceChatState.isRecording
+                    isRecording
                       ? "Detener grabación"
-                      : "Grabación manual"
+                      : "Grabar audio"
                   }
                 >
-                  {voiceChatState.isRecording ? "⏹️" : "🎤"}
+                  {isRecording ? "⏹️" : "🎤"}
                 </button>
 
-                <button
-                  onClick={async () => {
-                    const success = await playLastAudio();
-                    if (success) toast.success("🔊 Reproduciendo audio");
-                  }}
-                  className="p-2 rounded-xl bg-blue-100 hover:bg-blue-200 text-blue-700 transition-all hover:scale-105"
-                  title="Reproducir último audio"
-                >
-                  🔊
-                </button>
-
-                <button
-                  onClick={async () => {
-                    const result = await startVoiceChat();
-                    if (result) {
-                      toast.success("Chat de voz conectado");
-                    }
-                  }}
-                  className="p-2 rounded-xl bg-green-100 hover:bg-green-200 text-green-700 transition-all hover:scale-105"
-                  title="Conectar chat de voz"
-                >
-                  🔌
-                </button>
+                {isPlaying && (
+                  <div className="flex items-center gap-2 text-sm text-blue-600">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                    Reproduciendo respuesta...
+                  </div>
+                )}
               </div>
-
-              {/* Voice Status */}
-              {voiceChatState.isListening && (
-                <div className="mt-3 flex items-center gap-2 text-sm text-purple-600">
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
-                  {voiceChatState.isRecording
-                    ? "Escuchando..."
-                    : voiceChatState.isSpeaking
-                    ? "IA hablando..."
-                    : "Esperando tu voz..."}
-                </div>
-              )}
             </div>
 
             {/* Messages */}
@@ -708,9 +646,34 @@ export default function StoreApp() {
                         : "bg-gradient-to-r from-blue-500 to-indigo-500 text-white"
                     }`}
                   >
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                      {msg.message}
-                    </p>
+                    {msg.type === 'audio' ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🎵</span>
+                        <span className="text-sm">
+                          {msg.isBot ? 'Respuesta de audio del AI' : 'Audio enviado'}
+                        </span>
+                        {msg.isBot && (
+                          <button
+                            onClick={() => {
+                              if (msg.content) {
+                                // Reproducir audio usando el servicio
+                                const audioBlob = new Blob([msg.content], { type: 'audio/wav' });
+                                const audioUrl = URL.createObjectURL(audioBlob);
+                                const audio = new Audio(audioUrl);
+                                audio.play();
+                              }
+                            }}
+                            className="ml-2 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+                          >
+                            🔊 Reproducir
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                        {msg.message}
+                      </p>
+                    )}
                     <span
                       className={`text-xs block mt-2 ${
                         msg.isBot ? "text-gray-500" : "text-blue-100"
