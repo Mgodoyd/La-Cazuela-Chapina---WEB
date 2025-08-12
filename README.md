@@ -1,6 +1,6 @@
-# 🌮 Genesis Tamales - Frontend Web Application
+# 🌮 La Cazuela Chapina - Frontend Web Application
 
-Aplicación web de comercio electrónico y panel administrativo para Genesis Tamales, construida con React 19, TypeScript, Redux Toolkit y Tailwind CSS.
+Aplicación web de comercio electrónico y panel administrativo para La Cazuela Chapina, construida con React 19, TypeScript, Redux Toolkit y Tailwind CSS.
 
 ## 🚀 Características Principales
 
@@ -19,7 +19,7 @@ Aplicación web de comercio electrónico y panel administrativo para Genesis Tam
 
 - **Acceso restringido**: Solo usuarios con rol "Admin"
 - **Autenticación obligatoria**: No permite registro por seguridad
-- **Gestión completa**: Control de productos, órdenes y usuarios
+- **Gestión completa**: Control de productos, órdenes, inventario, usuarios y proveedores
 
 ### 🔒 **Autenticación y Seguridad**
 
@@ -46,7 +46,7 @@ Aplicación web de comercio electrónico y panel administrativo para Genesis Tam
 - **Envoltura**: Hoja de Plátano, Tusa de Maíz
 - **Picante**: Sin Chile, Suave, Chapín
 - **Cantidad**: 1, 6, 12 unidades
-- **Precios automáticos**: Pollo Q6, Cerdo/Res Q12, Otros Q8
+- **Precios automáticos**: Pollo $6, Cerdo/Res $12, Otros $8
 
 #### **Bebidas Personalizadas**
 
@@ -119,7 +119,7 @@ npm run build
 VITE_APP_MODE=store
 
 # URL del backend API
-VITE_API_BASE_URL=http://albmdwapi-1889324219.us-east-1.elb.amazonaws.com/api/v1
+VITE_API_BASE_URL=http://localhost:5000/api/v1
 
 # Configuración de encriptación
 VITE_ENCRYPTION_KEY=your-encryption-key
@@ -129,13 +129,13 @@ VITE_ENCRYPTION_KEY=your-encryption-key
 
 ```
 src/
-├── global/                 # Estado global compartido
-│   ├── authSlice.ts       # Redux slice para autenticación
-│   └── index.ts           # Store y hooks compartidos
-├── types/                 # Interfaces TypeScript
+├── global/               # Estado global compartido
+│   ├── authSlice.ts      # Redux slice para autenticación
+│   └── index.ts          # Store y hooks compartidos
+├── types/                # Interfaces TypeScript
 │   ├── auth.ts           # Tipos de autenticación
 │   └── chat.ts           # Tipos de chat
-├── store/                 # Aplicación e-commerce
+├── store/                # Aplicación e-commerce
 │   ├── api/              # Servicios de API
 │   ├── components/       # Componentes de la tienda
 │   ├── hooks/            # Hooks customizados
@@ -144,6 +144,8 @@ src/
 │   └── App.tsx           # Componente principal de la tienda
 ├── dashboard/            # Panel administrativo
 │   ├── components/       # Componentes del dashboard
+│   ├── services/         # Servicios del dashboard
+│   ├── types/            # Tipos del dashboard
 │   └── App.tsx           # Componente principal del dashboard
 ├── hooks/                # Hooks globales
 ├── utils/                # Utilidades globales
@@ -181,7 +183,7 @@ Sistema de caché local para productos personalizables:
 
 ### **Diseño Minimalista**
 
-- **Colores principales**: Orange/Red gradient, Blue accents
+- **Colores principales**: Verde y marrón (colores de tamales)
 - **Tipografía**: Lato font family
 - **Iconos**: Emojis nativos para mejor rendimiento
 - **Responsivo**: Mobile-first design
@@ -216,22 +218,9 @@ Sistema de caché local para productos personalizables:
 - Prevención de XSS
 - Límites de tamaño de datos
 
-## 📊 **Gestión de Estado**
-
-### **Redux Store Global**
 
 ```typescript
-// Estado de autenticación
-interface AuthState {
-  user: User | null;
-  token: string | null;
-  refreshToken: string | null;
-  loading: boolean;
-  error: string | null;
-}
-
 // Persistencia automática
-- localStorage para tokens y usuario
 - Restauración automática al cargar la app
 - Limpieza en logout
 ```
@@ -243,50 +232,37 @@ interface AuthState {
 - Configuraciones de UI temporales
 - Estados de formularios
 
-## 🚀 **Nuevas Funcionalidades Recientes**
+## 🚀 **Funcionalidades del Dashboard**
 
-### **🔄 Sistema de Refresh Tokens Mejorado**
+### **Gestión de Usuarios**
+- Lista de usuarios registrados
+- Edición de roles y permisos
+- Eliminación de usuarios
 
-- **Sin headers en refresh**: El endpoint `/user/refresh` no requiere token en header
-- **Body con PascalCase**: Envía `Token` y `RefreshToken` en el cuerpo
-- **Retry automático**: Reintenta peticiones fallidas después del refresh
-- **Logs detallados**: Debugging mejorado para troubleshooting
+### **Gestión de Productos**
+- CRUD completo de productos
+- Control de inventario
+- Gestión de precios
 
-### **🛒 Resolución de Nombres de Productos Customizables**
+### **Gestión de Órdenes**
+- Visualización de pedidos
+- Cambio de estados
+- Historial de cambios
 
-- **Caché local**: Sistema de caché para productos personalizados
-- **Resolución inteligente**: Prioridad productName > catálogo > caché > ID
-- **Persistencia**: Nombres guardados para mostrar en órdenes históricas
-- **Expiración automática**: Limpieza de caché antiguo
+### **Gestión de Inventario**
+- Control de stock
+- Movimientos de inventario
+- Alertas de stock bajo
+- Reportes de consumo
 
-### **💳 Validaciones Avanzadas de Tarjeta de Crédito**
+### **Gestión de Sucursales**
+- Información de ubicaciones
+- Horarios de atención
+- Contacto y dirección
 
-- **Formato automático**: Espaciado de números de tarjeta
-- **Validación en tiempo real**: Restricciones por tipo de campo
-- **Solo números**: CVV y partes numéricas
-- **Solo letras**: Nombres y ciudades
-- **Fechas**: Validación de expiración
-- **Longitud**: Límites apropiados por campo
-
-## 🐛 **Problemas Resueltos**
-
-### **❌ Productos Customizables Mostrando ID**
-
-- **Problema**: Los tamales y bebidas personalizados mostraban ID en lugar del nombre
-- **Causa**: Backend no almacena `productName`, solo `productId`
-- **Solución**: Sistema de caché local + resolución inteligente de nombres
-
-### **❌ Refresh Token con Headers**
-
-- **Problema**: Endpoint `/user/refresh` recibía token en header
-- **Causa**: Configuración incorrecta en `ApiService`
-- **Solución**: Modificación para enviar solo en body sin headers
-
-### **❌ Validaciones de Formulario Inconsistentes**
-
-- **Problema**: Campos permitían caracteres inválidos
-- **Causa**: Falta de validación en tiempo real
-- **Solución**: Sistema de validación por tipo de campo
+### **Gestión de Proveedores**
+- Catálogo de proveedores
+- Información de contacto
 
 ## 📈 **Métricas y Monitoreo**
 
@@ -300,46 +276,10 @@ interface AuthState {
 
 ### **Debugging Tools**
 
-- Console logs con emojis para fácil identificación
+- Console logs para fácil identificación
 - Información detallada de estados
 - Tracking de operaciones asíncronas
 - Estadísticas de caché
-
-## 🚀 **Roadmap Futuro**
-
-### **Próximas Funcionalidades**
-
-- [ ] PWA (Progressive Web App)
-- [ ] Notificaciones push
-- [ ] Modo offline
-- [ ] Analytics integrado
-- [ ] Tests automatizados
-- [ ] CI/CD pipeline
-
-### **Optimizaciones Planeadas**
-
-- [ ] Code splitting avanzado
-- [ ] Service Workers
-- [ ] Image optimization
-- [ ] Bundle size optimization
-- [ ] Performance monitoring
-
-## 👥 **Contribución**
-
-### **Desarrollo**
-
-1. Fork del repositorio
-2. Crear branch feature (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit changes (`git commit -am 'Add nueva funcionalidad'`)
-4. Push al branch (`git push origin feature/nueva-funcionalidad`)
-5. Crear Pull Request
-
-### **Reportar Bugs**
-
-- Usar GitHub Issues
-- Incluir steps para reproducir
-- Adjuntar logs de consola
-- Especificar browser y versión
 
 ## 📄 **Licencia**
 
@@ -347,6 +287,6 @@ Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
 
 ---
 
-**Desarrollado con ❤️ para Genesis Tamales**
+**Desarrollado con ❤️ para La Cazuela Chapina**
 
 _Última actualización: Agosto 2025_
