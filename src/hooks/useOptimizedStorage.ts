@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { SecureStorage } from '../utils/security';
 
-// Hook optimizado para storage con debouncing y memoización
+// Hook optimizado para storage con debouncing y memorización
 export function useOptimizedStorage<T>(
   key: string,
   initialValue: T,
@@ -13,7 +13,6 @@ export function useOptimizedStorage<T>(
 ) {
   const {
     debounceMs = 300,
-    encrypt = false,
     validate = () => true
   } = options;
 
@@ -171,7 +170,7 @@ export function useCartStorage(userId: string | null) {
     );
   }, [setCart, removeFromCart]);
 
-  // Calcular total de forma memoizada
+  // Calcular total de forma memorizada
   const total = useMemo(() => 
     cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
     [cart]

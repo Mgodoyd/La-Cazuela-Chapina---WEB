@@ -90,7 +90,7 @@ class VoiceChatService {
         }
       };
 
-      this.ws!.onerror = (error) => {
+      this.ws!.onerror = (_error) => {
         clearTimeout(timeout);
         this.updateState({ error: 'WebSocket error' });
         toast.error('Voice chat error');
@@ -205,7 +205,7 @@ class VoiceChatService {
     const detectVoice = () => {
       if (!this.isListeningMode || !this.analyser || !this.dataArray) return;
 
-      this.analyser.getByteFrequencyData(this.dataArray);
+      // this.analyser.getByteFrequencyData(this.dataArray);
 
       // Average volume in voice freq range (~300Hz to 3kHz)
       let sum = 0;

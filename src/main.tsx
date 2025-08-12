@@ -8,7 +8,8 @@ import { restoreSession } from './global/authSlice'
 const APP_MODE = import.meta.env.VITE_APP_MODE as 'store' | 'dashboard'
 
 const App = lazy(() => import(`./${APP_MODE}/App`))
-
+// const App = lazy(() => import(`./store/App`))
+// const App = lazy(() => import(`./dashboard/App`))
 function AppWrapper() {
   useEffect(() => {
     const token = localStorage.getItem('token');

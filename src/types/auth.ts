@@ -12,6 +12,7 @@ export interface User {
     refreshToken: string | null; 
     loading: boolean;
     error: string | null;
+    success: string | null;
   }
   
   export interface LoginCredentials {

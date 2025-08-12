@@ -102,11 +102,7 @@ export default function CreditCardPayment({ onClose, onSuccess, orderData, total
       });
       const response = await OrderService.createOrder(orderData);
       
-      if (response.status === 'ok') {
-        const orderId = Array.isArray(response.data) && response.data.length > 0 && response.data[0].id
-          ? response.data[0].id
-          : 'desconocido';
-        // toast.success('¡Pago procesado exitosamente! Orden creada: ' + orderId);
+      if (response.status === 'ok') {        // toast.success('¡Pago procesado exitosamente! Orden creada: ' + orderId);
         onSuccess();
       } else {
         toast.error('Error al crear la orden');

@@ -4,7 +4,7 @@ class SecurityService {
   private static readonly IV_LENGTH = 12;
 
   // Generar clave de encriptación derivada
-  private static async deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
+  private static async deriveKey(password: string, _salt: Uint8Array): Promise<CryptoKey> {
     const baseKey = await crypto.subtle.importKey(
       'raw',
       new TextEncoder().encode(password),

@@ -1,22 +1,36 @@
-import React, { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../global';
 import Login from './components/Login';
-import { logout, clearMessages } from '../global/authSlice';
+import UsersModal from './components/UsersModal';
+import ProductsModal from './components/ProductsModal';
+import OrdersModal from './components/OrdersModal';
+import BranchesModal from './components/BranchesModal';
+import SuppliersModal from './components/SuppliersModal';
+import InventoryModal from './components/InventoryModal';
+import DashboardModal from './components/DashboardModal';
+import { logout, clearError } from '../global/authSlice';
 import toast, { Toaster } from 'react-hot-toast';
 
 export default function DashboardApp() {
   const dispatch = useAppDispatch();
   const { token, user, error, success } = useAppSelector((state) => state.auth);
+  const [showUsers, setShowUsers] = useState(false);
+  const [showProducts, setShowProducts] = useState(false);
+  const [showOrders, setShowOrders] = useState(false);
+  const [showBranches, setShowBranches] = useState(false);
+  const [showSuppliers, setShowSuppliers] = useState(false);
+  const [showInventory, setShowInventory] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   // Mostrar notificaciones cuando cambie el estado
   useEffect(() => {
     if (error) {
       toast.error(error);
-      dispatch(clearMessages());
+      dispatch(clearError());
     }
     if (success) {
       toast.success(success);
-      dispatch(clearMessages());
+      dispatch(clearError());
     }
   }, [error, success, dispatch]);
 
@@ -97,9 +111,7 @@ export default function DashboardApp() {
               </div>
               <h3 className="text-xl font-semibold text-blue-300 mb-3">Usuarios</h3>
               <p className="text-blue-200 mb-4">Gestiona usuarios del sistema</p>
-              <button className="text-blue-300 hover:text-blue-200 font-medium transition duration-200 hover:underline">
-                Administrar →
-              </button>
+              <button onClick={() => setShowUsers(true)} className="text-blue-300 hover:text-blue-200 font-medium transition duration-200 hover:underline">Administrar →</button>
             </div>
             
             <div className="group bg-gradient-to-br from-green-500/20 to-green-600/20 p-8 rounded-2xl border border-green-500/30 hover:border-green-400/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:bg-green-500/30">
@@ -110,9 +122,7 @@ export default function DashboardApp() {
               </div>
               <h3 className="text-xl font-semibold text-green-300 mb-3">Productos</h3>
               <p className="text-green-200 mb-4">Administra el catálogo</p>
-              <button className="text-green-300 hover:text-green-200 font-medium transition duration-200 hover:underline">
-                Gestionar →
-              </button>
+              <button onClick={() => setShowProducts(true)} className="text-green-300 hover:text-green-200 font-medium transition duration-200 hover:underline">Gestionar →</button>
             </div>
             
             <div className="group bg-gradient-to-br from-purple-500/20 to-purple-600/20 p-8 rounded-2xl border border-purple-500/30 hover:border-purple-400/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:bg-purple-500/30">
@@ -122,10 +132,20 @@ export default function DashboardApp() {
                 </svg>
               </div>
               <h3 className="text-xl font-semibold text-purple-300 mb-3">Inventario</h3>
-              <p className="text-purple-200 mb-4">Control de stock</p>
-              <button className="text-purple-300 hover:text-purple-200 font-medium transition duration-200 hover:underline">
-                Revisar →
-              </button>
+              <p className="text-purple-200 mb-1">Control de stock</p>
+              <button onClick={() => setShowInventory(true)} className="text-purple-300 hover:text-purple-200 font-medium transition duration-200 hover:underline">Inventario →</button>
+
+            </div>
+
+            <div className="group bg-gradient-to-br from-blue-500/20 to-blue-600/20 p-8 rounded-2xl border border-blue-500/30 hover:border-blue-400/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:bg-blue-500/30">
+              <div className="h-16 w-16 bg-gradient-to-r from-blue-400 to-blue-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-blue-300 mb-3">Pedidos</h3>
+              <p className="text-blue-200 mb-1">Control de pedidos</p>
+              <button onClick={() => setShowOrders(true)} className="text-blue-300 hover:text-blue-200 font-medium transition duration-200 hover:underline">Pedidos →</button>
             </div>
             
             <div className="group bg-gradient-to-br from-orange-500/20 to-orange-600/20 p-8 rounded-2xl border border-orange-500/30 hover:border-orange-400/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:bg-orange-500/30">
@@ -134,15 +154,43 @@ export default function DashboardApp() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-orange-300 mb-3">Reportes</h3>
-              <p className="text-orange-200 mb-4">Análisis y estadísticas</p>
-              <button className="text-orange-300 hover:text-orange-200 font-medium transition duration-200 hover:underline">
-                Ver reportes →
-              </button>
+              <h3 className="text-xl font-semibold text-orange-300 mb-3">Sucursales</h3>
+              <p className="text-orange-200 mb-1">Gestiona las sucursales</p>
+              <button onClick={() => setShowBranches(true)} className="text-orange-300 hover:text-orange-200 font-medium transition duration-200 hover:underline">Sucursales →</button>
+            </div>
+
+            <div className="group bg-gradient-to-br from-orange-500/20 to-orange-600/20 p-8 rounded-2xl border border-orange-500/30 hover:border-orange-400/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:bg-orange-500/30">
+              <div className="h-16 w-16 bg-gradient-to-r from-orange-400 to-orange-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-orange-300 mb-3">Proveedores</h3>
+              <p className="text-orange-200 mb-1">Gestiona los proveedores</p>
+              <button onClick={() => setShowSuppliers(true)} className="text-red-300 hover:text-red-200 font-medium transition duration-200 hover:underline">Proveedores →</button>
+            </div>
+
+            <div className="group bg-gradient-to-br from-orange-500/20 to-orange-600/20 p-8 rounded-2xl border border-orange-500/30 hover:border-orange-400/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:bg-orange-500/30">
+              <div className="h-16 w-16 bg-gradient-to-r from-orange-400 to-orange-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-orange-300 mb-3">Dashboard</h3>
+              <p className="text-orange-200 mb-1">Gestiona el dashboard</p>
+              <button onClick={() => setShowDashboard(true)} className="text-orange-300 hover:text-orange-200 font-medium transition duration-200 hover:underline">Dashboard →</button>
             </div>
           </div>
         </div>
       </div>
+      {showUsers && <UsersModal onClose={() => setShowUsers(false)} />}
+      {showProducts && <ProductsModal onClose={() => setShowProducts(false)} />}
+      {showOrders && <OrdersModal onClose={() => setShowOrders(false)} />}
+      {showBranches && <BranchesModal onClose={() => setShowBranches(false)} />}
+      {showSuppliers && <SuppliersModal onClose={() => setShowSuppliers(false)} />}
+      {showInventory && <InventoryModal onClose={() => setShowInventory(false)} />}
+      {showDashboard && <DashboardModal onClose={() => setShowDashboard(false)} />}
+
     </div>
   );
 }

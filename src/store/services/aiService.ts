@@ -5,7 +5,7 @@ export class AIService {
   // Método para stream de respuestas
   private static async streamResponse(
     message: string,
-    token: string
+    _token: string
   ): Promise<ReadableStream<Uint8Array>> {
     try {
       return await ApiService.stream("/ai/stream", { message });

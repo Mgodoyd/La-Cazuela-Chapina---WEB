@@ -30,11 +30,6 @@ export default function Login() {
             <p className="text-gray-300">
               Accede a tu dashboard de control
             </p>
-            <div className="mt-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-xl">
-              <p className="text-yellow-300 text-sm">
-                ⚠️ Solo usuarios administradores pueden acceder
-              </p>
-            </div>
           </div>
 
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

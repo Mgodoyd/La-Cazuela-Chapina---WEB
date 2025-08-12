@@ -15,6 +15,7 @@ const initialState: AuthState = {
   refreshToken: localStorage.getItem("refreshToken"),
   loading: false,
   error: null,
+  success: null,
 };
 
 export const loginUser = createAsyncThunk(

@@ -2,6 +2,7 @@ import { store } from "../../global";
 import { refreshToken, logout } from "../../global/authSlice";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5266/api/v1";
+const REFRESH_URL = `${API_URL}/user/refresh`;
 
 export class ApiService {
   private static async makeRequest(
@@ -32,15 +33,43 @@ export class ApiService {
 
     if (response.status === 401 && requireAuth) {
       try {
-        await store.dispatch(refreshToken()).unwrap();
+        // Intento manual de refresh para mayor compatibilidad con el backend
+        const stateBefore = store.getState();
+        const currentToken = stateBefore.auth.token;
+        const currentRefreshToken = stateBefore.auth.refreshToken;
+
+        if (!currentRefreshToken) throw new Error("No refresh token");
+
+        const refreshResp = await fetch(REFRESH_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ RefreshToken: currentRefreshToken, Token: currentToken })
+        });
+
+        if (!refreshResp.ok) {
+          store.dispatch(logout());
+          throw new Error(`Refresh failed ${refreshResp.status}`);
+        }
+
+        const refreshData = await refreshResp.json();
+        const refreshedToken = refreshData?.data?.token || refreshData?.token || refreshData?.Token || refreshData?.accessToken;
+        const refreshedRefresh = refreshData?.data?.refreshToken || refreshData?.refreshToken || refreshData?.RefreshToken;
+
+        if (!refreshedToken || !refreshedRefresh) {
+          store.dispatch(logout());
+          throw new Error('Invalid refresh response');
+        }
+
+        // Persistir en store/localStorage a través del thunk existente (mantener compatibilidad)
+        await store.dispatch(refreshToken()).catch(()=>{});
 
         const newState = store.getState();
-        const newToken = newState.auth.token;
+        const tokenAfter = newState.auth.token;
 
-        if (newToken) {
+        if (tokenAfter) {
           const newHeaders = {
             ...headers,
-            Authorization: `Bearer ${newToken}`,
+            Authorization: `Bearer ${tokenAfter}`,
           };
 
           const retryResponse = await fetch(url, {
@@ -97,6 +126,48 @@ export class ApiService {
       {
         method: "POST",
         body: JSON.stringify(data),
+      },
+      requireAuth
+    );
+
+    if (!response.ok) {
+      throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  // Método para PUT requests
+  static async put(
+    endpoint: string,
+    data: any,
+    requireAuth: boolean = true
+  ): Promise<any> {
+    const response = await this.makeRequest(
+      endpoint,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      },
+      requireAuth
+    );
+
+    if (!response.ok) {
+      throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  // Método para DELETE requests
+  static async delete(
+    endpoint: string,
+    requireAuth: boolean = true
+  ): Promise<any> {
+    const response = await this.makeRequest(
+      endpoint,
+      {
+        method: "DELETE",
       },
       requireAuth
     );
