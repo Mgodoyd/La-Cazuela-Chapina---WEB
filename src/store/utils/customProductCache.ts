@@ -4,7 +4,6 @@
  */
 import type { CustomProductInfo } from '../types/customProducts';
 
-
 export class CustomProductCache {
   private static readonly CACHE_KEY = 'customProductsCache';
   private static readonly MAX_CACHE_SIZE = 1000; // Límite de productos en caché
@@ -18,13 +17,13 @@ export class CustomProductCache {
       const cache = this.getCache();
       const productInfo: CustomProductInfo = {
         ...product,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
-      
+
       cache[product.id] = productInfo;
-      
+
       this.cleanupCache(cache);
-      
+
       localStorage.setItem(this.CACHE_KEY, JSON.stringify(cache));
     } catch (error) {
       console.error('Error al agregar producto al caché:', error);
@@ -38,23 +37,23 @@ export class CustomProductCache {
     try {
       const cache = this.getCache();
       const product = cache[productId];
-      
+
       if (!product) {
         return null;
       }
-      
+
       // Verificar si el producto ha expirado
       const createdAt = new Date(product.createdAt);
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() - this.CACHE_EXPIRY_DAYS);
-      
+
       if (createdAt < expiryDate) {
         // Producto expirado, eliminarlo del caché
         delete cache[productId];
         localStorage.setItem(this.CACHE_KEY, JSON.stringify(cache));
         return null;
       }
-      
+
       return product;
     } catch (error) {
       console.error('Error al obtener producto del caché:', error);
@@ -80,30 +79,34 @@ export class CustomProductCache {
    */
   private static cleanupCache(cache: Record<string, CustomProductInfo>): void {
     const products = Object.entries(cache);
-    
+
     // Filtrar productos expirados
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() - this.CACHE_EXPIRY_DAYS);
-    
+
     const validProducts = products.filter(([_, product]) => {
       const createdAt = new Date(product.createdAt);
       return createdAt >= expiryDate;
     });
-    
+
     // Si aún excede el límite, eliminar los más antiguos
     if (validProducts.length > this.MAX_CACHE_SIZE) {
-      validProducts.sort((a, b) => new Date(b[1].createdAt).getTime() - new Date(a[1].createdAt).getTime());
+      validProducts.sort(
+        (a, b) =>
+          new Date(b[1].createdAt).getTime() -
+          new Date(a[1].createdAt).getTime()
+      );
       validProducts.splice(this.MAX_CACHE_SIZE);
     }
-    
+
     // Reconstruir caché
     const newCache: Record<string, CustomProductInfo> = {};
     validProducts.forEach(([id, product]) => {
       newCache[id] = product;
     });
-    
+
     // Limpiar productos eliminados del caché original
-    Object.keys(cache).forEach(id => {
+    Object.keys(cache).forEach((id) => {
       if (!newCache[id]) {
         delete cache[id];
       }
@@ -125,15 +128,19 @@ export class CustomProductCache {
   /**
    * Obtener estadísticas del caché
    */
-  static getCacheStats(): { totalProducts: number; tamalCount: number; beverageCount: number } {
+  static getCacheStats(): {
+    totalProducts: number;
+    tamalCount: number;
+    beverageCount: number;
+  } {
     try {
       const cache = this.getCache();
       const products = Object.values(cache);
-      
+
       return {
         totalProducts: products.length,
-        tamalCount: products.filter(p => p.type === 'tamal').length,
-        beverageCount: products.filter(p => p.type === 'beverage').length
+        tamalCount: products.filter((p) => p.type === 'tamal').length,
+        beverageCount: products.filter((p) => p.type === 'beverage').length,
       };
     } catch (error) {
       console.error('Error al obtener estadísticas del caché:', error);

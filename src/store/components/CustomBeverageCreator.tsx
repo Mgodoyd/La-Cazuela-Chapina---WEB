@@ -5,22 +5,24 @@ import { CustomProductCache } from '../utils/customProductCache';
 import toast from 'react-hot-toast';
 import type { CustomBeverageCreatorProps } from '../types/custom';
 
-
-export default function CustomBeverageCreator({ onClose, onSuccess }: CustomBeverageCreatorProps) {
+export default function CustomBeverageCreator({
+  onClose,
+  onSuccess,
+}: CustomBeverageCreatorProps) {
   const [formData, setFormData] = useState<CustomProductRequest>({
     price: 8, // Precio inicial: atole (8) en 12oz = 8
     active: true,
     type: 'atole',
     sweetener: 'panela',
     topping: 'canela',
-    size: '12oz'
+    size: '12oz',
   });
 
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (formData.price <= 0) {
       toast.error('Por favor ingresa un precio válido');
       return;
@@ -31,37 +33,42 @@ export default function CustomBeverageCreator({ onClose, onSuccess }: CustomBeve
       ...formData,
       name: `${formData.type} de ${formData.sweetener} con ${formData.topping}`,
       description: `${formData.type} personalizado con endulzante ${formData.sweetener}, topping ${formData.topping}, tamaño ${formData.size}`,
-      stock: 1 // Stock por defecto
+      stock: 1, // Stock por defecto
     };
 
     setLoading(true);
     try {
-      const response = await CustomProductService.createCustomBeverage(beverageData);
+      const response =
+        await CustomProductService.createCustomBeverage(beverageData);
       // toast.success('¡Bebida personalizada creada y añadida al carrito!');
-      
+
       // Añadir al carrito automáticamente
       if (response.data) {
-        console.log('🥤 Respuesta del backend para bebida customizada:', response.data);
-        const productId = (response.data as any)?.id || (response.data as any)?.Id || 'temp-id';
+        console.log(
+          '🥤 Respuesta del backend para bebida customizada:',
+          response.data
+        );
+        const productId =
+          (response.data as any)?.id || (response.data as any)?.Id || 'temp-id';
         const productToAdd = {
           Id: productId,
           Name: beverageData.name,
           Price: beverageData.price,
-          Description: beverageData.description
+          Description: beverageData.description,
         };
-        
+
         // Agregar al caché para futuras consultas
         CustomProductCache.addProduct({
           id: productId,
           name: beverageData.name,
           description: beverageData.description,
-          type: 'beverage'
+          type: 'beverage',
         });
-        
+
         console.log('🛒 Producto a agregar al carrito:', productToAdd);
         onSuccess(productToAdd);
       }
-      
+
       onClose();
     } catch (error) {
       toast.error('Error al crear la bebida personalizada');
@@ -73,7 +80,7 @@ export default function CustomBeverageCreator({ onClose, onSuccess }: CustomBeve
 
   const calculateBeveragePrice = (type: string, size: string) => {
     let basePrice = 8; // Precio por defecto
-    
+
     // Precio base por tipo (para tamaño 12oz)
     switch (type) {
       case 'atole':
@@ -91,26 +98,26 @@ export default function CustomBeverageCreator({ onClose, onSuccess }: CustomBeve
       default:
         basePrice = 8;
     }
-    
+
     // Multiplicador por tamaño
     if (size === '1L') {
       basePrice *= 2.5; // 1L cuesta 2.5 veces más que 12oz
     }
-    
+
     return Math.round(basePrice); // Redondear para evitar decimales extraños
   };
 
   const handleInputChange = (field: keyof CustomProductRequest, value: any) => {
-    setFormData(prev => {
+    setFormData((prev) => {
       const newData = { ...prev, [field]: value };
-      
+
       // Actualizar precio automáticamente según tipo y tamaño
       if (field === 'type' || field === 'size') {
         const type = field === 'type' ? value : prev.type || 'atole';
         const size = field === 'size' ? value : prev.size || '12oz';
         newData.price = calculateBeveragePrice(type, size);
       }
-      
+
       return newData;
     });
   };
@@ -119,7 +126,9 @@ export default function CustomBeverageCreator({ onClose, onSuccess }: CustomBeve
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">🥤 Crear Bebida Personalizada</h2>
+          <h2 className="text-2xl font-bold text-gray-900">
+            🥤 Crear Bebida Personalizada
+          </h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-2xl"
@@ -140,14 +149,17 @@ export default function CustomBeverageCreator({ onClose, onSuccess }: CustomBeve
                 step="0.01"
                 min="0"
                 value={formData.price}
-                onChange={(e) => handleInputChange('price', parseFloat(e.target.value))}
+                onChange={(e) =>
+                  handleInputChange('price', parseFloat(e.target.value))
+                }
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
                 placeholder="Se calcula automáticamente"
                 required
                 readOnly
               />
               <p className="text-xs text-gray-500 mt-1">
-                12oz - Atole : $8 | Pinol: $3 | Cacao batido: $5 | 1L: ×2.5 veces
+                12oz - Atole : $8 | Pinol: $3 | Cacao batido: $5 | 1L: ×2.5
+                veces
               </p>
             </div>
 
@@ -169,8 +181,15 @@ export default function CustomBeverageCreator({ onClose, onSuccess }: CustomBeve
           {/* Información generada automáticamente */}
           <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
             <div className="text-sm text-blue-700 space-y-1">
-              <p><strong>Nombre:</strong> {formData.type} de {formData.sweetener} con {formData.topping}</p>
-              <p><strong>Descripción:</strong> {formData.type} personalizado con endulzante {formData.sweetener}, topping {formData.topping}, tamaño {formData.size}</p>
+              <p>
+                <strong>Nombre:</strong> {formData.type} de {formData.sweetener}{' '}
+                con {formData.topping}
+              </p>
+              <p>
+                <strong>Descripción:</strong> {formData.type} personalizado con
+                endulzante {formData.sweetener}, topping {formData.topping},
+                tamaño {formData.size}
+              </p>
               {/* <p><strong>Stock:</strong> 1 (por defecto)</p> */}
             </div>
           </div>
@@ -239,8 +258,6 @@ export default function CustomBeverageCreator({ onClose, onSuccess }: CustomBeve
                 <option value="1L">Jarro 1 L</option>
               </select>
             </div>
-
-
           </div>
 
           {/* Botones */}

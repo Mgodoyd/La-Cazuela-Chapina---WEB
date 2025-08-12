@@ -1,4 +1,4 @@
-const NAMESPACE = "cazuela_chapina";
+const NAMESPACE = 'cazuela_chapina';
 
 export function saveToStorage<T>(key: string, value: T): void {
   try {
@@ -16,4 +16,4 @@ export function loadFromStorage<T>(key: string, fallback: T): T {
   } catch {
     return fallback;
   }
-} 
+}

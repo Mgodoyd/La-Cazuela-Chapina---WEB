@@ -5,23 +5,26 @@ import { CustomProductCache } from '../utils/customProductCache';
 import toast from 'react-hot-toast';
 import type { CustomTamalCreatorProps } from '../types/custom';
 
-
-export default function CustomTamalCreator({ onClose, onSuccess }: CustomTamalCreatorProps) {
-  const [formData, setFormData] = useState<CustomProductRequest>({  //placeholder
+export default function CustomTamalCreator({
+  onClose,
+  onSuccess,
+}: CustomTamalCreatorProps) {
+  const [formData, setFormData] = useState<CustomProductRequest>({
+    //placeholder
     price: 12,
     active: true,
     doughType: 'amarillo',
     filling: 'cerdo',
     wrapper: 'plátano',
     spiceLevel: 'suave',
-    quantity: 1
+    quantity: 1,
   });
 
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (formData.price <= 0) {
       toast.error('Por favor ingresa un precio válido');
       return;
@@ -31,38 +34,40 @@ export default function CustomTamalCreator({ onClose, onSuccess }: CustomTamalCr
       ...formData,
       name: `Tamal ${formData.doughType} con ${formData.filling}`,
       description: `Tamal personalizado con masa ${formData.doughType}, relleno de ${formData.filling}, envuelto en ${formData.wrapper}, nivel ${formData.spiceLevel}, ${formData.quantity} unidad${formData.quantity && formData.quantity > 1 ? 'es' : ''}`,
-      stock: 1 // Stock por defecto
+      stock: 1, // Stock por defecto
     };
 
     setLoading(true);
     try {
       const response = await CustomProductService.createCustomTamal(tamalData);
       // toast.success('¡Tamal personalizado creado y añadido al carrito!');
-      
+
       if (response.data) {
-        const productId = (response.data as any)?.id || (response.data as any)?.Id || 'temp-id';
-        const unitPrice = (tamalData.quantity || 1) === 1 ? 
-          tamalData.price : 
-          tamalData.price / (tamalData.quantity || 1);
-        
+        const productId =
+          (response.data as any)?.id || (response.data as any)?.Id || 'temp-id';
+        const unitPrice =
+          (tamalData.quantity || 1) === 1
+            ? tamalData.price
+            : tamalData.price / (tamalData.quantity || 1);
+
         const productToAdd = {
           Id: productId,
           Name: tamalData.name,
           Price: unitPrice,
           Description: tamalData.description,
-          quantity: tamalData.quantity
+          quantity: tamalData.quantity,
         };
-        
+
         CustomProductCache.addProduct({
           id: productId,
           name: tamalData.name,
           description: tamalData.description,
-          type: 'tamal'
+          type: 'tamal',
         });
-        
+
         onSuccess(productToAdd);
       }
-      
+
       onClose();
     } catch (error) {
       toast.error('Error al crear el tamal personalizado');
@@ -74,7 +79,7 @@ export default function CustomTamalCreator({ onClose, onSuccess }: CustomTamalCr
 
   const calculatePrice = (filling: string, quantity: number) => {
     let unitPrice = 8;
-    
+
     if (filling === 'pollo') {
       unitPrice = 6;
     } else if (filling === 'cerdo' || filling === 'res') {
@@ -82,21 +87,22 @@ export default function CustomTamalCreator({ onClose, onSuccess }: CustomTamalCr
     } else {
       unitPrice = 8;
     }
-    
+
     return unitPrice * quantity;
   };
 
   const handleInputChange = (field: keyof CustomProductRequest, value: any) => {
-    setFormData(prev => {
+    setFormData((prev) => {
       const newData = { ...prev, [field]: value };
-      
+
       // Actualizar precio automáticamente según el relleno Y cantidad
       if (field === 'filling' || field === 'quantity') {
-        const filling = field === 'filling' ? value : prev.filling || 'vegetariano';
+        const filling =
+          field === 'filling' ? value : prev.filling || 'vegetariano';
         const quantity = field === 'quantity' ? value : prev.quantity || 1;
         newData.price = calculatePrice(filling, quantity);
       }
-      
+
       return newData;
     });
   };
@@ -105,7 +111,9 @@ export default function CustomTamalCreator({ onClose, onSuccess }: CustomTamalCr
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">🌽 Crear Tamal Personalizado</h2>
+          <h2 className="text-2xl font-bold text-gray-900">
+            🌽 Crear Tamal Personalizado
+          </h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-2xl"
@@ -126,7 +134,9 @@ export default function CustomTamalCreator({ onClose, onSuccess }: CustomTamalCr
                 step="0.01"
                 min="0"
                 value={formData.price}
-                onChange={(e) => handleInputChange('price', parseFloat(e.target.value))}
+                onChange={(e) =>
+                  handleInputChange('price', parseFloat(e.target.value))
+                }
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50"
                 placeholder="Se calcula automáticamente"
                 required
@@ -156,15 +166,21 @@ export default function CustomTamalCreator({ onClose, onSuccess }: CustomTamalCr
           {/* Información generada automáticamente */}
           <div className="bg-orange-50 p-4 rounded-xl border border-orange-200">
             <div className="text-sm text-orange-700 space-y-1">
-              <p><strong>Nombre:</strong> Tamal {formData.doughType} con {formData.filling}</p>
               <p>
-                <strong>Descripción:</strong> Tamal personalizado con masa {formData.doughType}, relleno de {formData.filling}, envuelto en {formData.wrapper}, nivel {formData.spiceLevel},{" "}
-                {typeof formData.quantity === "number" ? (
+                <strong>Nombre:</strong> Tamal {formData.doughType} con{' '}
+                {formData.filling}
+              </p>
+              <p>
+                <strong>Descripción:</strong> Tamal personalizado con masa{' '}
+                {formData.doughType}, relleno de {formData.filling}, envuelto en{' '}
+                {formData.wrapper}, nivel {formData.spiceLevel},{' '}
+                {typeof formData.quantity === 'number' ? (
                   <>
-                    {formData.quantity} unidad{formData.quantity > 1 ? "es" : ""}
+                    {formData.quantity} unidad
+                    {formData.quantity > 1 ? 'es' : ''}
                   </>
                 ) : (
-                  "Cantidad no especificada"
+                  'Cantidad no especificada'
                 )}
               </p>
               {/* <p><strong>Stock:</strong> 1 (por defecto)</p> */}
@@ -224,7 +240,9 @@ export default function CustomTamalCreator({ onClose, onSuccess }: CustomTamalCr
               </label>
               <select
                 value={formData.spiceLevel}
-                onChange={(e) => handleInputChange('spiceLevel', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange('spiceLevel', e.target.value)
+                }
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               >
                 <option value="sin">Sin Chile</option>
@@ -239,7 +257,9 @@ export default function CustomTamalCreator({ onClose, onSuccess }: CustomTamalCr
               </label>
               <select
                 value={formData.quantity}
-                onChange={(e) => handleInputChange('quantity', parseInt(e.target.value))}
+                onChange={(e) =>
+                  handleInputChange('quantity', parseInt(e.target.value))
+                }
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               >
                 <option value={1}>1 unidad</option>
@@ -247,8 +267,6 @@ export default function CustomTamalCreator({ onClose, onSuccess }: CustomTamalCr
                 <option value={12}>12 unidades</option>
               </select>
             </div>
-
-
           </div>
 
           {/* Botones */}

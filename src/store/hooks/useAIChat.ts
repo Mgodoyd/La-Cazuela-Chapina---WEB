@@ -27,32 +27,40 @@ export const useAIChat = (token: string | null) => {
         const parsed = JSON.parse(savedHistory);
         return parsed.map((msg: any) => ({
           ...msg,
-          timestamp: new Date(msg.timestamp)
+          timestamp: new Date(msg.timestamp),
         }));
       } catch {
         console.warn('Error parsing saved chat history');
       }
     }
-    return [{
-      id: 1,
-      message: '¡Hola! Soy tu Cazuela. 🤖\n\nPara usar el chat, necesitas iniciar sesión. Una vez autenticado, podré ayudarte con:\n• Información sobre productos\n• Recomendaciones personalizadas\n• Consultas sobre ingredientes\n• Ayuda con pedidos\n• Y mucho más...',
-      isBot: true,
-      timestamp: new Date(),
-      type: 'text'
-    }];
+    return [
+      {
+        id: 1,
+        message:
+          '¡Hola! Soy tu Cazuela. 🤖\n\nPara usar el chat, necesitas iniciar sesión. Una vez autenticado, podré ayudarte con:\n• Información sobre productos\n• Recomendaciones personalizadas\n• Consultas sobre ingredientes\n• Ayuda con pedidos\n• Y mucho más...',
+        isBot: true,
+        timestamp: new Date(),
+        type: 'text',
+      },
+    ];
   });
 
   const [isTyping, setIsTyping] = useState(false);
   const [currentStreamingMessage, setCurrentStreamingMessage] = useState('');
-  const [localToken, setLocalToken] = useState<string | null>(() => localStorage.getItem('token'));
-  
+  const [localToken, setLocalToken] = useState<string | null>(() =>
+    localStorage.getItem('token')
+  );
+
   // Estados del chat de voz
   const [isRecording, setIsRecording] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
   const voiceChatServiceRef = useRef<VoiceChatService | null>(null);
 
-  const getToken = useCallback(() => token || localToken || localStorage.getItem('token'), [token, localToken]);
+  const getToken = useCallback(
+    () => token || localToken || localStorage.getItem('token'),
+    [token, localToken]
+  );
 
   useEffect(() => {
     const syncToken = () => {
@@ -64,89 +72,118 @@ export const useAIChat = (token: string | null) => {
   }, [localToken]);
 
   useEffect(() => {
-    localStorage.setItem(`chatHistory_${sessionId}`, JSON.stringify(chatHistory));
+    localStorage.setItem(
+      `chatHistory_${sessionId}`,
+      JSON.stringify(chatHistory)
+    );
   }, [chatHistory, sessionId]);
 
   // === Mensajes de texto ===
-  const sendMessage = useCallback(async (message: string) => {
-    if (!message.trim()) return;
+  const sendMessage = useCallback(
+    async (message: string) => {
+      if (!message.trim()) return;
 
-    const currentToken = getToken();
-    if (!currentToken) {
-      toast.error('No tienes autorización para usar el chat. Por favor, inicia sesión.');
-      return;
-    }
+      const currentToken = getToken();
+      if (!currentToken) {
+        toast.error(
+          'No tienes autorización para usar el chat. Por favor, inicia sesión.'
+        );
+        return;
+      }
 
-    const userMessage: ChatMessageExtended = {
-      id: chatHistory.length + 1,
-      message: message.trim(),
-      isBot: false,
-      timestamp: new Date(),
-      type: 'text'
-    };
+      const userMessage: ChatMessageExtended = {
+        id: chatHistory.length + 1,
+        message: message.trim(),
+        isBot: false,
+        timestamp: new Date(),
+        type: 'text',
+      };
 
-    setChatHistory(prev => [...prev, userMessage]);
+      setChatHistory((prev) => [...prev, userMessage]);
 
-    const botMessageId = chatHistory.length + 2;
-    const botMessage: ChatMessageExtended = {
-      id: botMessageId,
-      message: '',
-      isBot: true,
-      timestamp: new Date(),
-      type: 'text'
-    };
-    setChatHistory(prev => [...prev, botMessage]);
+      const botMessageId = chatHistory.length + 2;
+      const botMessage: ChatMessageExtended = {
+        id: botMessageId,
+        message: '',
+        isBot: true,
+        timestamp: new Date(),
+        type: 'text',
+      };
+      setChatHistory((prev) => [...prev, botMessage]);
 
-    setIsTyping(true);
-    setCurrentStreamingMessage('');
-
-    try {
-      await AIService.sendMessage(
-        message.trim(),
-        currentToken,
-        (chunk: string) => {
-          setCurrentStreamingMessage(prev => prev + chunk);
-          setChatHistory(prev => prev.map(msg =>
-            msg.id === botMessageId ? { ...msg, message: (msg.message || '') + chunk } : msg
-          ));
-        },
-        (fullResponse: string) => {
-          setIsTyping(false);
-          setCurrentStreamingMessage('');
-          setChatHistory(prev => prev.map(msg =>
-            msg.id === botMessageId ? { ...msg, message: fullResponse } : msg
-          ));
-        },
-        (error: string) => {
-          setIsTyping(false);
-          setCurrentStreamingMessage('');
-          setChatHistory(prev => prev.map(msg =>
-            msg.id === botMessageId
-              ? { ...msg, message: 'Lo siento, tuve un problema para procesar tu mensaje. Por favor, intenta de nuevo.' }
-              : msg
-          ));
-          toast.error('Error en el chat: ' + error);
-        }
-      );
-    } catch (error) {
-      setIsTyping(false);
+      setIsTyping(true);
       setCurrentStreamingMessage('');
-      setChatHistory(prev => prev.map(msg =>
-        msg.id === botMessageId
-          ? { ...msg, message: 'Lo siento, no pude conectarme con el servicio. Por favor, intenta más tarde.' }
-          : msg
-      ));
-      toast.error('Error de conexión con la IA');
-    }
-  }, [chatHistory.length, getToken]);
+
+      try {
+        await AIService.sendMessage(
+          message.trim(),
+          currentToken,
+          (chunk: string) => {
+            setCurrentStreamingMessage((prev) => prev + chunk);
+            setChatHistory((prev) =>
+              prev.map((msg) =>
+                msg.id === botMessageId
+                  ? { ...msg, message: (msg.message || '') + chunk }
+                  : msg
+              )
+            );
+          },
+          (fullResponse: string) => {
+            setIsTyping(false);
+            setCurrentStreamingMessage('');
+            setChatHistory((prev) =>
+              prev.map((msg) =>
+                msg.id === botMessageId
+                  ? { ...msg, message: fullResponse }
+                  : msg
+              )
+            );
+          },
+          (error: string) => {
+            setIsTyping(false);
+            setCurrentStreamingMessage('');
+            setChatHistory((prev) =>
+              prev.map((msg) =>
+                msg.id === botMessageId
+                  ? {
+                      ...msg,
+                      message:
+                        'Lo siento, tuve un problema para procesar tu mensaje. Por favor, intenta de nuevo.',
+                    }
+                  : msg
+              )
+            );
+            toast.error('Error en el chat: ' + error);
+          }
+        );
+      } catch (error) {
+        setIsTyping(false);
+        setCurrentStreamingMessage('');
+        setChatHistory((prev) =>
+          prev.map((msg) =>
+            msg.id === botMessageId
+              ? {
+                  ...msg,
+                  message:
+                    'Lo siento, no pude conectarme con el servicio. Por favor, intenta más tarde.',
+                }
+              : msg
+          )
+        );
+        toast.error('Error de conexión con la IA');
+      }
+    },
+    [chatHistory.length, getToken]
+  );
 
   const clearChat = useCallback(() => {
     const defaultMessage: ChatMessageExtended = {
       id: 1,
-      message: '¡Hola! Soy tu Cazuela. 🤖\n\nPara usar el chat, necesitas iniciar sesión. Una vez autenticado, podré ayudarte con:\n• Información sobre productos\n• Recomendaciones personalizadas\n• Consultas sobre ingredientes\n• Ayuda con pedidos\n• Y mucho más...',
+      message:
+        '¡Hola! Soy tu Cazuela. 🤖\n\nPara usar el chat, necesitas iniciar sesión. Una vez autenticado, podré ayudarte con:\n• Información sobre productos\n• Recomendaciones personalizadas\n• Consultas sobre ingredientes\n• Ayuda con pedidos\n• Y mucho más...',
       isBot: true,
       timestamp: new Date(),
-      type: 'text'
+      type: 'text',
     };
     setChatHistory([defaultMessage]);
     setIsTyping(false);
@@ -177,22 +214,32 @@ export const useAIChat = (token: string | null) => {
           isBot: message.sender === 'ai',
           timestamp: new Date(message.timestamp),
           type: message.type === 'system' ? 'text' : message.type,
-          content: message.type === 'audio' ? message.content as ArrayBuffer : undefined,
-          message: message.type === 'text' ? message.content as string : (message.type === 'system' ? message.content as string : '')
+          content:
+            message.type === 'audio'
+              ? (message.content as ArrayBuffer)
+              : undefined,
+          message:
+            message.type === 'text'
+              ? (message.content as string)
+              : message.type === 'system'
+                ? (message.content as string)
+                : '',
         };
 
-        setChatHistory(prev => [...prev, newMessage]);
+        setChatHistory((prev) => [...prev, newMessage]);
       });
 
       // Sincronización estado de grabación/reproducción
-      voiceChatServiceRef.current.onStateChange((updates: Partial<VoiceChatState>) => {
-        if (updates.isRecording !== undefined) {
-          setIsRecording(updates.isRecording);
+      voiceChatServiceRef.current.onStateChange(
+        (updates: Partial<VoiceChatState>) => {
+          if (updates.isRecording !== undefined) {
+            setIsRecording(updates.isRecording);
+          }
+          if (updates.isPlaying !== undefined) {
+            setIsPlaying(updates.isPlaying);
+          }
         }
-        if (updates.isPlaying !== undefined) {
-          setIsPlaying(updates.isPlaying);
-        }
-      });
+      );
     }
   }, [chatHistory.length]);
 
@@ -200,12 +247,14 @@ export const useAIChat = (token: string | null) => {
     try {
       const currentToken = getToken();
       if (!currentToken) {
-        toast.error('No tienes autorización para usar el chat. Por favor, inicia sesión.');
+        toast.error(
+          'No tienes autorización para usar el chat. Por favor, inicia sesión.'
+        );
         return false;
       }
 
       initVoiceChatService();
-      
+
       if (voiceChatServiceRef.current) {
         const success = await voiceChatServiceRef.current.startRecording();
         if (success) {
@@ -259,6 +308,6 @@ export const useAIChat = (token: string | null) => {
     stopRecording,
     stopVoiceChat,
     isRecording,
-    isPlaying
+    isPlaying,
   };
 };

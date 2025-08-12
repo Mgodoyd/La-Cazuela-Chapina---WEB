@@ -1,5 +1,9 @@
-import { ApiService } from '../api/apiService';
-import type { ComboDefinition, CreateComboRequest, ComboResponse } from '../types/combo';
+import { ApiService } from '../../global/api/apiService';
+import type {
+  ComboDefinition,
+  CreateComboRequest,
+  ComboResponse,
+} from '../types/combo';
 
 export class ComboService {
   // Obtener todos los combos
@@ -14,7 +18,9 @@ export class ComboService {
   }
 
   // Crear un nuevo combo
-  static async createCombo(comboData: CreateComboRequest): Promise<ComboResponse> {
+  static async createCombo(
+    comboData: CreateComboRequest
+  ): Promise<ComboResponse> {
     try {
       const response = await ApiService.post('/combo/create', comboData, true);
       return response;

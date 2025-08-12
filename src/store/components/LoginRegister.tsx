@@ -13,12 +13,11 @@ export default function Login({ onClose }: LoginProps) {
   const [isLogin, setIsLogin] = useState(true);
   const [name, setName] = useState('');
   const [loginSuccess, setLoginSuccess] = useState(false);
-  
+
   const dispatch = useAppDispatch();
   const { loading, error, token, user } = useAppSelector((state) => state.auth);
 
-    useEffect(() => {
-    
+  useEffect(() => {
     if (token && user && onClose && loginSuccess) {
       // Pequeño delay para asegurar que el estado se actualice
       setTimeout(() => {
@@ -30,14 +29,13 @@ export default function Login({ onClose }: LoginProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (isLogin) {
       const result = await dispatch(loginUser({ email, password }));
       if (loginUser.fulfilled.match(result)) setLoginSuccess(true);
-      
     } else {
       const result = await dispatch(registerUser({ name, email, password }));
-        if (registerUser.fulfilled.match(result)) {
+      if (registerUser.fulfilled.match(result)) {
         toast.success('¡Cuenta creada exitosamente! Ahora inicia sesión.');
         setIsLogin(true);
         setEmail(email);
@@ -50,22 +48,37 @@ export default function Login({ onClose }: LoginProps) {
     <div className="p-8">
       <div className="text-center">
         <div className="mx-auto h-20 w-20 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
-          <svg className="h-10 w-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7h14a7 7 0 00-7-7z" />
+          <svg
+            className="h-10 w-10 text-white"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7h14a7 7 0 00-7-7z"
+            />
           </svg>
         </div>
         <h2 className="text-3xl font-bold text-gray-900 mb-2">
           {isLogin ? 'Bienvenido de vuelta' : 'Crear cuenta'}
         </h2>
         <p className="text-gray-600">
-          {isLogin ? 'Accede a tu tienda personalizada' : 'Únete a nuestra plataforma'}
+          {isLogin
+            ? 'Accede a tu tienda personalizada'
+            : 'Únete a nuestra plataforma'}
         </p>
       </div>
 
       <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
         {!isLogin && (
           <div className="space-y-2">
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium text-gray-700"
+            >
               Nombre completo
             </label>
             <input
@@ -82,7 +95,10 @@ export default function Login({ onClose }: LoginProps) {
         )}
 
         <div className="space-y-2">
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-gray-700"
+          >
             Correo electrónico
           </label>
           <input
@@ -98,7 +114,10 @@ export default function Login({ onClose }: LoginProps) {
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-gray-700"
+          >
             Contraseña
           </label>
           <input
@@ -129,8 +148,10 @@ export default function Login({ onClose }: LoginProps) {
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
               {isLogin ? 'Iniciando sesión...' : 'Creando cuenta...'}
             </div>
+          ) : isLogin ? (
+            'Iniciar Sesión'
           ) : (
-            isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'
+            'Crear Cuenta'
           )}
         </button>
       </form>
@@ -141,7 +162,9 @@ export default function Login({ onClose }: LoginProps) {
           onClick={() => setIsLogin(!isLogin)}
           className="text-blue-600 hover:text-blue-700 font-medium transition duration-200 hover:underline"
         >
-          {isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
+          {isLogin
+            ? '¿No tienes cuenta? Regístrate'
+            : '¿Ya tienes cuenta? Inicia sesión'}
         </button>
       </div>
 

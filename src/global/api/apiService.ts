@@ -1,7 +1,7 @@
-import { store } from "../../global";
-import { refreshToken, logout } from "../../global/authSlice";
+import { store } from '..';
+import { refreshToken, logout } from '../authSlice';
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5266/api/v1";
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5266/api/v1';
 const REFRESH_URL = `${API_URL}/user/refresh`;
 
 export class ApiService {
@@ -13,7 +13,7 @@ export class ApiService {
     const url = `${API_URL}${endpoint}`;
 
     const headers: HeadersInit = {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       ...options.headers,
     };
 
@@ -21,7 +21,7 @@ export class ApiService {
       const state = store.getState();
       const token = state.auth.token;
 
-      if (!token) throw new Error("No hay token de autorización disponible");
+      if (!token) throw new Error('No hay token de autorización disponible');
 
       (headers as Record<string, string>).Authorization = `Bearer ${token}`;
     }
@@ -38,12 +38,15 @@ export class ApiService {
         const currentToken = stateBefore.auth.token;
         const currentRefreshToken = stateBefore.auth.refreshToken;
 
-        if (!currentRefreshToken) throw new Error("No refresh token");
+        if (!currentRefreshToken) throw new Error('No refresh token');
 
         const refreshResp = await fetch(REFRESH_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ RefreshToken: currentRefreshToken, Token: currentToken })
+          body: JSON.stringify({
+            RefreshToken: currentRefreshToken,
+            Token: currentToken,
+          }),
         });
 
         if (!refreshResp.ok) {
@@ -52,8 +55,15 @@ export class ApiService {
         }
 
         const refreshData = await refreshResp.json();
-        const refreshedToken = refreshData?.data?.token || refreshData?.token || refreshData?.Token || refreshData?.accessToken;
-        const refreshedRefresh = refreshData?.data?.refreshToken || refreshData?.refreshToken || refreshData?.RefreshToken;
+        const refreshedToken =
+          refreshData?.data?.token ||
+          refreshData?.token ||
+          refreshData?.Token ||
+          refreshData?.accessToken;
+        const refreshedRefresh =
+          refreshData?.data?.refreshToken ||
+          refreshData?.refreshToken ||
+          refreshData?.RefreshToken;
 
         if (!refreshedToken || !refreshedRefresh) {
           store.dispatch(logout());
@@ -61,7 +71,7 @@ export class ApiService {
         }
 
         // Persistir en store/localStorage a través del thunk existente (mantener compatibilidad)
-        await store.dispatch(refreshToken()).catch(()=>{});
+        await store.dispatch(refreshToken()).catch(() => {});
 
         const newState = store.getState();
         const tokenAfter = newState.auth.token;
@@ -82,15 +92,15 @@ export class ApiService {
           } else {
             store.dispatch(logout());
             throw new Error(
-              "Token inválido después del refresh. Sesión cerrada."
+              'Token inválido después del refresh. Sesión cerrada.'
             );
           }
         } else {
           store.dispatch(logout());
-          throw new Error("No se pudo obtener nuevo token. Sesión cerrada.");
+          throw new Error('No se pudo obtener nuevo token. Sesión cerrada.');
         }
       } catch (error) {
-        console.log("❌ Error al refrescar token:", error);
+        console.log('❌ Error al refrescar token:', error);
         store.dispatch(logout());
       }
     }
@@ -104,7 +114,7 @@ export class ApiService {
   ): Promise<any> {
     const response = await this.makeRequest(
       endpoint,
-      { method: "GET" },
+      { method: 'GET' },
       requireAuth
     );
 
@@ -124,7 +134,7 @@ export class ApiService {
     const response = await this.makeRequest(
       endpoint,
       {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify(data),
       },
       requireAuth
@@ -146,7 +156,7 @@ export class ApiService {
     const response = await this.makeRequest(
       endpoint,
       {
-        method: "PUT",
+        method: 'PUT',
         body: JSON.stringify(data),
       },
       requireAuth
@@ -167,7 +177,7 @@ export class ApiService {
     const response = await this.makeRequest(
       endpoint,
       {
-        method: "DELETE",
+        method: 'DELETE',
       },
       requireAuth
     );
@@ -188,7 +198,7 @@ export class ApiService {
     const response = await this.makeRequest(
       endpoint,
       {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify(data),
       },
       requireAuth
@@ -199,7 +209,7 @@ export class ApiService {
     }
 
     if (!response.body) {
-      throw new Error("No response body available");
+      throw new Error('No response body available');
     }
 
     return response.body;

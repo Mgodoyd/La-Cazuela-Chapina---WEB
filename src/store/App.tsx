@@ -1,17 +1,17 @@
-import { useState, useEffect } from "react";
-import { useAppDispatch, useAppSelector } from "../global";
-import Login from "./components/LoginRegister";
-import { logout, clearError } from "../global/authSlice";
-import toast, { Toaster } from "react-hot-toast";
-import { useAIChat } from "./hooks/useAIChat";
-import { ProductService } from "./services/productService";
-import type { Product, ComboProduct } from "./types/product";
-import CustomTamalCreator from "./components/CustomTamalCreator";
-import CustomBeverageCreator from "./components/CustomBeverageCreator";
-import OrderStatus from "./components/OrderStatus";
-import CreditCardPayment from "./components/CreditCardPayment";
-import type { CreateOrderRequest } from "./types/order";
-import type { CartItem } from "./types/cart";
+import { useState, useEffect } from 'react';
+import { useAppDispatch, useAppSelector } from '../global';
+import Login from './components/LoginRegister';
+import { logout, clearError } from '../global/authSlice';
+import toast, { Toaster } from 'react-hot-toast';
+import { useAIChat } from './hooks/useAIChat';
+import { ProductService } from './services/productService';
+import type { Product, ComboProduct } from './types/product';
+import CustomTamalCreator from './components/CustomTamalCreator';
+import CustomBeverageCreator from './components/CustomBeverageCreator';
+import OrderStatus from './components/OrderStatus';
+import CreditCardPayment from './components/CreditCardPayment';
+import type { CreateOrderRequest } from './types/order';
+import type { CartItem } from './types/cart';
 
 export default function StoreApp() {
   const dispatch = useAppDispatch();
@@ -27,7 +27,7 @@ export default function StoreApp() {
   const [orderData, setOrderData] = useState<CreateOrderRequest | null>(null);
   const [showAIChat, setShowAIChat] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [activeCategory, setActiveCategory] = useState("todos");
+  const [activeCategory, setActiveCategory] = useState('todos');
 
   // Hook del chat de IA con todas las funcionalidades de voz
   const {
@@ -38,7 +38,7 @@ export default function StoreApp() {
     startRecording,
     stopRecording,
     isRecording,
-    isPlaying
+    isPlaying,
   } = useAIChat(token);
 
   // Estado para productos
@@ -53,8 +53,8 @@ export default function StoreApp() {
   });
 
   const [productsLoading, setProductsLoading] = useState(true);
-  const [chatMessage, setChatMessage] = useState("");
-  const [currentStreamingMessage] = useState<string>("");
+  const [chatMessage, setChatMessage] = useState('');
+  const [currentStreamingMessage] = useState<string>('');
 
   // Cargar productos al montar
   useEffect(() => {
@@ -68,8 +68,8 @@ export default function StoreApp() {
           combos: data.combos,
         });
       } catch (error) {
-        console.error("Error loading products:", error);
-        toast.error("Error cargando productos");
+        console.error('Error loading products:', error);
+        toast.error('Error cargando productos');
       } finally {
         setProductsLoading(false);
       }
@@ -88,26 +88,26 @@ export default function StoreApp() {
 
   // Cargar carrito desde localStorage
   useEffect(() => {
-    const savedCart = localStorage.getItem(`cart_${user?.id || "guest"}`);
+    const savedCart = localStorage.getItem(`cart_${user?.id || 'guest'}`);
     if (savedCart) {
       try {
         setCart(JSON.parse(savedCart));
       } catch (error) {
-        console.error("Error loading cart:", error);
+        console.error('Error loading cart:', error);
       }
     }
   }, [user?.id]);
 
   // Guardar carrito en localStorage
   useEffect(() => {
-    localStorage.setItem(`cart_${user?.id || "guest"}`, JSON.stringify(cart));
+    localStorage.setItem(`cart_${user?.id || 'guest'}`, JSON.stringify(cart));
   }, [cart, user?.id]);
 
   const handleLogout = () => {
     dispatch(logout());
     setCart([]);
-    localStorage.removeItem(`cart_${user?.id || "guest"}`);
-    toast.success("Sesión cerrada exitosamente");
+    localStorage.removeItem(`cart_${user?.id || 'guest'}`);
+    toast.success('Sesión cerrada exitosamente');
   };
 
   // El modal de Login se cierra a sí mismo al detectar sesión iniciada
@@ -142,7 +142,7 @@ export default function StoreApp() {
 
   const removeFromCart = (itemId: string) => {
     setCart((prev) => prev.filter((item) => item.id !== itemId));
-    toast.success("Producto eliminado del carrito");
+    toast.success('Producto eliminado del carrito');
   };
 
   const updateCartQuantity = (itemId: string, newQuantity: number) => {
@@ -169,7 +169,7 @@ export default function StoreApp() {
   const handleSendMessage = () => {
     if (!chatMessage.trim()) return;
     sendMessage(chatMessage);
-    setChatMessage("");
+    setChatMessage('');
   };
 
   const startVoiceCall = async () => {
@@ -178,19 +178,19 @@ export default function StoreApp() {
     } else {
       const success = await startRecording();
       if (success) {
-        toast.success("Grabación iniciada - Habla ahora");
+        toast.success('Grabación iniciada - Habla ahora');
       }
     }
   };
 
   const handleProceedToPayment = () => {
     if (cart.length === 0) {
-      toast.error("Tu carrito está vacío");
+      toast.error('Tu carrito está vacío');
       return;
     }
 
     const data: CreateOrderRequest = {
-      userId: user?.id?.toString() || "",
+      userId: user?.id?.toString() || '',
       confirmed: true,
       items: cart.map((item) => ({
         productId: item.id,
@@ -210,21 +210,21 @@ export default function StoreApp() {
       // La creación de la orden se realiza dentro de CreditCardPayment
       setCart([]);
       setShowPaymentModal(false);
-      toast.success("¡Pedido realizado exitosamente! 🎉");
+      toast.success('¡Pedido realizado exitosamente! 🎉');
     } catch (error) {
-      console.error("Error post-pago:", error);
-      toast.error("Error al finalizar el pedido");
+      console.error('Error post-pago:', error);
+      toast.error('Error al finalizar el pedido');
     }
   };
 
   // Obtener productos filtrados por categoría
   const getFilteredProducts = () => {
     switch (activeCategory) {
-      case "tamales":
+      case 'tamales':
         return products.tamales;
-      case "bebidas":
+      case 'bebidas':
         return products.bebidas;
-      case "combos":
+      case 'combos':
         return products.combos;
       default:
         return [...products.tamales, ...products.bebidas, ...products.combos];
@@ -238,7 +238,7 @@ export default function StoreApp() {
       <Toaster
         position="top-right"
         toastOptions={{
-          className: "bg-white border border-gray-300 rounded-lg shadow-md",
+          className: 'bg-white border border-gray-300 rounded-lg shadow-md',
         }}
       />
 
@@ -316,7 +316,7 @@ export default function StoreApp() {
           <div className="flex flex-col items-center py-8 space-y-10">
             {/* Categorías en fila horizontal con iconos más pequeños */}
             <div className="flex justify-center gap-10 w-full max-w-4xl">
-              {["tamales", "bebidas", "combos", "al gusto"].map((cat) => (
+              {['tamales', 'bebidas', 'combos', 'al gusto'].map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
@@ -329,20 +329,20 @@ export default function StoreApp() {
               shadow-md border border-transparent
               ${
                 activeCategory === cat
-                  ? "bg-gradient-to-r from-orange-400 to-orange-600 text-white shadow-lg transform scale-105 border-orange-500"
-                  : "bg-white text-gray-700 hover:bg-orange-50 hover:text-orange-600 hover:shadow-lg hover:border-orange-300"
+                  ? 'bg-gradient-to-r from-orange-400 to-orange-600 text-white shadow-lg transform scale-105 border-orange-500'
+                  : 'bg-white text-gray-700 hover:bg-orange-50 hover:text-orange-600 hover:shadow-lg hover:border-orange-300'
               }
               focus:outline-none focus:ring-4 focus:ring-orange-400 focus:ring-opacity-60
             `}
                 >
                   <span className="text-3xl select-none">
-                    {cat === "tamales"
-                      ? "🫔"
-                      : cat === "bebidas"
-                      ? "🥤"
-                      : cat === "combos"
-                      ? "🍽️"
-                      : "✨"}
+                    {cat === 'tamales'
+                      ? '🫔'
+                      : cat === 'bebidas'
+                        ? '🥤'
+                        : cat === 'combos'
+                          ? '🍽️'
+                          : '✨'}
                   </span>
                   <span>{cat.charAt(0).toUpperCase() + cat.slice(1)}</span>
                 </button>
@@ -350,24 +350,24 @@ export default function StoreApp() {
             </div>
 
             {/* Sección de personalización solo si "Al Gusto" está activo */}
-            {activeCategory === "al gusto" && (
+            {activeCategory === 'al gusto' && (
               <div className="w-full mt-8 px-4">
                 <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-8">
                   {[
                     {
-                      title: "Personalizar Tamal",
+                      title: 'Personalizar Tamal',
                       description:
-                        "Elige tus ingredientes y rellenos favoritos.",
-                      icon: "🫔",
+                        'Elige tus ingredientes y rellenos favoritos.',
+                      icon: '🫔',
                       onClick: () => setShowCustomTamalModal(true),
-                      bgColor: "bg-purple-600 hover:bg-purple-700",
+                      bgColor: 'bg-purple-600 hover:bg-purple-700',
                     },
                     {
-                      title: "Personalizar Bebida",
-                      description: "Crea la bebida perfecta a tu gusto.",
-                      icon: "🥤",
+                      title: 'Personalizar Bebida',
+                      description: 'Crea la bebida perfecta a tu gusto.',
+                      icon: '🥤',
                       onClick: () => setShowCustomBeverageModal(true),
-                      bgColor: "bg-blue-600 hover:bg-blue-700",
+                      bgColor: 'bg-blue-600 hover:bg-blue-700',
                     },
                   ].map(({ title, description, icon, onClick, bgColor }) => (
                     <div
@@ -411,11 +411,11 @@ export default function StoreApp() {
                   {/* Ícono del Producto - Ahora es más grande */}
                   <div className="flex justify-center mb-4">
                     <span className="text-7xl select-none">
-                      {product.Id.includes("tamal")
-                        ? "🫔"
-                        : product.Id.includes("bebida")
-                        ? "🥤"
-                        : "🍽️"}
+                      {product.Id.includes('tamal')
+                        ? '🫔'
+                        : product.Id.includes('bebida')
+                          ? '🥤'
+                          : '🍽️'}
                     </span>
                   </div>
 
@@ -609,16 +609,12 @@ export default function StoreApp() {
                   onClick={startVoiceCall}
                   className={`p-2 rounded-xl transition-all ${
                     isRecording
-                      ? "bg-red-500 text-white animate-pulse"
-                      : "bg-green-100 hover:bg-green-200 text-green-700"
+                      ? 'bg-red-500 text-white animate-pulse'
+                      : 'bg-green-100 hover:bg-green-200 text-green-700'
                   }`}
-                  title={
-                    isRecording
-                      ? "Detener grabación"
-                      : "Grabar audio"
-                  }
+                  title={isRecording ? 'Detener grabación' : 'Grabar audio'}
                 >
-                  {isRecording ? "⏹️" : "🎤"}
+                  {isRecording ? '⏹️' : '🎤'}
                 </button>
 
                 {isPlaying && (
@@ -636,28 +632,32 @@ export default function StoreApp() {
                 <div
                   key={msg.id}
                   className={`flex ${
-                    msg.isBot ? "justify-start" : "justify-end"
+                    msg.isBot ? 'justify-start' : 'justify-end'
                   }`}
                 >
                   <div
                     className={`max-w-[80%] p-4 rounded-2xl shadow-lg ${
                       msg.isBot
-                        ? "bg-gray-100 border border-gray-200"
-                        : "bg-gradient-to-r from-blue-500 to-indigo-500 text-white"
+                        ? 'bg-gray-100 border border-gray-200'
+                        : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white'
                     }`}
                   >
                     {msg.type === 'audio' ? (
                       <div className="flex items-center gap-2">
                         <span className="text-lg">🎵</span>
                         <span className="text-sm">
-                          {msg.isBot ? 'Respuesta de audio del AI' : 'Audio enviado'}
+                          {msg.isBot
+                            ? 'Respuesta de audio del AI'
+                            : 'Audio enviado'}
                         </span>
                         {msg.isBot && (
                           <button
                             onClick={() => {
                               if (msg.content) {
                                 // Reproducir audio usando el servicio
-                                const audioBlob = new Blob([msg.content], { type: 'audio/wav' });
+                                const audioBlob = new Blob([msg.content], {
+                                  type: 'audio/wav',
+                                });
                                 const audioUrl = URL.createObjectURL(audioBlob);
                                 const audio = new Audio(audioUrl);
                                 audio.play();
@@ -676,7 +676,7 @@ export default function StoreApp() {
                     )}
                     <span
                       className={`text-xs block mt-2 ${
-                        msg.isBot ? "text-gray-500" : "text-blue-100"
+                        msg.isBot ? 'text-gray-500' : 'text-blue-100'
                       }`}
                     >
                       {msg.timestamp.toLocaleTimeString()}
@@ -709,7 +709,7 @@ export default function StoreApp() {
                   value={chatMessage}
                   onChange={(e) => setChatMessage(e.target.value)}
                   onKeyPress={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
                       handleSendMessage();
                     }
@@ -735,9 +735,7 @@ export default function StoreApp() {
       {showLoginModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <Login
-              onClose={() => setShowLoginModal(false)}
-            />
+            <Login onClose={() => setShowLoginModal(false)} />
           </div>
         </div>
       )}
@@ -757,9 +755,7 @@ export default function StoreApp() {
       )}
 
       {showOrderStatus && token && user && (
-        <OrderStatus
-          onClose={() => setShowOrderStatus(false)}
-        />
+        <OrderStatus onClose={() => setShowOrderStatus(false)} />
       )}
 
       {showPaymentModal && orderData && (

@@ -9,11 +9,13 @@ class VoiceChatService {
   private audioMessages: VoiceChatMessage[] = [];
 
   private onMessageCallback: ((msg: VoiceChatMessage) => void) | null = null;
-  private onStateChangeCallback: ((state: Partial<VoiceChatState>) => void) | null = null;
+  private onStateChangeCallback:
+    | ((state: Partial<VoiceChatState>) => void)
+    | null = null;
 
   private currentSource: AudioBufferSourceNode | null = null;
 
-  private readonly API_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5266/api/v1"}/voicechat`;
+  private readonly API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:5266/api/v1'}/voicechat`;
 
   constructor() {
     this.initializeAudioContext();
@@ -22,7 +24,8 @@ class VoiceChatService {
   private initializeAudioContext() {
     if (!this.audioContext) {
       try {
-        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        this.audioContext = new (window.AudioContext ||
+          (window as any).webkitAudioContext)();
       } catch (error) {
         console.error('Error initializing AudioContext:', error);
       }
@@ -68,11 +71,11 @@ class VoiceChatService {
   }
 
   stopRecording() {
-    if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
-    
+    if (this.mediaRecorder && this.mediaRecorder.state === 'recording')
+      this.mediaRecorder.stop();
 
     if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
+      this.stream.getTracks().forEach((track) => track.stop());
       this.stream = null;
     }
 
@@ -83,7 +86,9 @@ class VoiceChatService {
     if (this.chunks.length === 0) return;
 
     try {
-      const audioBlob = new Blob(this.chunks, { type: 'audio/webm;codecs=opus' });
+      const audioBlob = new Blob(this.chunks, {
+        type: 'audio/webm;codecs=opus',
+      });
       const arrayBuffer = await audioBlob.arrayBuffer();
 
       this.addMessage({
@@ -106,7 +111,9 @@ class VoiceChatService {
   private async sendAudioToBackend(audioBuffer: ArrayBuffer) {
     try {
       const formData = new FormData();
-      const audioBlob = new Blob([audioBuffer], { type: 'audio/webm;codecs=opus' });
+      const audioBlob = new Blob([audioBuffer], {
+        type: 'audio/webm;codecs=opus',
+      });
       formData.append('audio', audioBlob, 'recording.webm');
 
       const response = await fetch(this.API_URL, {
@@ -114,8 +121,8 @@ class VoiceChatService {
         body: formData,
       });
 
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
 
       const audioResponse = await response.arrayBuffer();
 
@@ -156,7 +163,9 @@ class VoiceChatService {
         this.currentSource = null;
       }
 
-      const audioBuffer = await this.audioContext!.decodeAudioData(buffer.slice(0));
+      const audioBuffer = await this.audioContext!.decodeAudioData(
+        buffer.slice(0)
+      );
       this.currentSource = this.audioContext!.createBufferSource();
       this.currentSource.buffer = audioBuffer;
       this.currentSource.connect(this.audioContext!.destination);
@@ -196,7 +205,7 @@ class VoiceChatService {
   }
 
   public getAudioMessages(): VoiceChatMessage[] {
-    return this.audioMessages.filter(msg => msg.type === 'audio');
+    return this.audioMessages.filter((msg) => msg.type === 'audio');
   }
 
   public getMessages(): VoiceChatMessage[] {
@@ -230,7 +239,7 @@ class VoiceChatService {
     this.stopRecording();
 
     if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
+      this.stream.getTracks().forEach((track) => track.stop());
       this.stream = null;
     }
 

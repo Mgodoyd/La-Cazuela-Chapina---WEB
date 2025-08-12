@@ -85,7 +85,9 @@ export default function OrderStatus({ onClose }: OrderStatusProps) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">📋 Estado de Mis Órdenes</h2>
+          <h2 className="text-2xl font-bold text-gray-900">
+            📋 Estado de Mis Órdenes
+          </h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-2xl"
@@ -104,7 +106,9 @@ export default function OrderStatus({ onClose }: OrderStatusProps) {
           <div className="text-center py-8">
             <div className="text-4xl mb-4">📭</div>
             <p className="text-gray-500">No tienes órdenes aún</p>
-            <p className="text-sm text-gray-400 mt-2">Realiza tu primer pedido para verlo aquí</p>
+            <p className="text-sm text-gray-400 mt-2">
+              Realiza tu primer pedido para verlo aquí
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -119,7 +123,9 @@ export default function OrderStatus({ onClose }: OrderStatusProps) {
                       Orden #{order.id ? order.id.slice(-8) : 'N/A'}
                     </h3>
                     <p className="text-sm text-gray-500">
-                      {order.createdAt ? formatDate(order.createdAt) : 'Fecha no disponible'}
+                      {order.createdAt
+                        ? formatDate(order.createdAt)
+                        : 'Fecha no disponible'}
                     </p>
                   </div>
                   <span
@@ -139,12 +145,21 @@ export default function OrderStatus({ onClose }: OrderStatusProps) {
                     >
                       <div>
                         <p className="font-medium text-gray-900">
-                          Producto: {item.productName || products[item.productId]?.Name || CustomProductCache.getProduct(item.productId)?.name || `ID: ${item.productId}`}
+                          Producto:{' '}
+                          {item.productName ||
+                            products[item.productId]?.Name ||
+                            CustomProductCache.getProduct(item.productId)
+                              ?.name ||
+                            `ID: ${item.productId}`}
                         </p>
-                        <p className="text-sm text-gray-600">Cantidad: {item.quantity}</p>
+                        <p className="text-sm text-gray-600">
+                          Cantidad: {item.quantity}
+                        </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium text-gray-900">${item.unitPrice.toFixed(2)}</p>
+                        <p className="font-medium text-gray-900">
+                          ${item.unitPrice.toFixed(2)}
+                        </p>
                         <p className="text-sm text-gray-600">
                           Q{(item.unitPrice * item.quantity).toFixed(2)}
                         </p>
@@ -155,11 +170,16 @@ export default function OrderStatus({ onClose }: OrderStatusProps) {
 
                 <div className="border-t border-gray-200 pt-4 mt-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-lg font-semibold text-gray-900">Total de la Orden:</span>
+                    <span className="text-lg font-semibold text-gray-900">
+                      Total de la Orden:
+                    </span>
                     <span className="text-2xl font-bold text-orange-600">
                       $
                       {order.items
-                        .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
+                        .reduce(
+                          (sum, item) => sum + item.unitPrice * item.quantity,
+                          0
+                        )
                         .toFixed(2)}
                     </span>
                   </div>
