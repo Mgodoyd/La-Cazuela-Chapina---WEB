@@ -280,11 +280,6 @@ Sistema de caché local para productos personalizables:
 - Tracking de operaciones asíncronas
 - Estadísticas de caché
 
-### **Reportar Bugs**
-- Usar GitHub Issues
-- Incluir steps para reproducir
-- Adjuntar logs de consola
-- Especificar browser y versión
 ## 📄 **Licencia**
 
 Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
