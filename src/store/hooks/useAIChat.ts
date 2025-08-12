@@ -1,22 +1,26 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { AIService } from '../services/aiService';
 import type { ChatMessage } from '../types/chat';
-import VoiceChatService, { type VoiceChatMessage, type VoiceChatState } from '../services/voiceChatService';
+import VoiceChatService from '../services/voiceChatService';
+import type { VoiceChatMessage, VoiceChatState } from '../types/ia';
 import toast from 'react-hot-toast';
 
+export interface ChatMessageExtended extends ChatMessage {
+  type?: 'text' | 'audio';
+  content?: ArrayBuffer;
+}
+
 export const useAIChat = (token: string | null) => {
-  // Generar o recuperar sessionID para el chat
   const [sessionId, setSessionId] = useState<string>(() => {
     const existingSessionId = localStorage.getItem('chatSessionId');
     if (existingSessionId) return existingSessionId;
-
     const newSessionId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     localStorage.setItem('chatSessionId', newSessionId);
     return newSessionId;
   });
 
-  // Estado del historial del chat
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() => {
+  // chatHistory unificado para texto y audio
+  const [chatHistory, setChatHistory] = useState<ChatMessageExtended[]>(() => {
     const savedHistory = localStorage.getItem(`chatHistory_${sessionId}`);
     if (savedHistory) {
       try {
@@ -33,41 +37,27 @@ export const useAIChat = (token: string | null) => {
       id: 1,
       message: '¡Hola! Soy tu Cazuela. 🤖\n\nPara usar el chat, necesitas iniciar sesión. Una vez autenticado, podré ayudarte con:\n• Información sobre productos\n• Recomendaciones personalizadas\n• Consultas sobre ingredientes\n• Ayuda con pedidos\n• Y mucho más...',
       isBot: true,
-      timestamp: new Date()
+      timestamp: new Date(),
+      type: 'text'
     }];
   });
 
-  // Estado para mostrar si el bot está "escribiendo"
   const [isTyping, setIsTyping] = useState(false);
-  // Mensaje parcial que va llegando por streaming
   const [currentStreamingMessage, setCurrentStreamingMessage] = useState('');
-
-  // Token local sincronizado con localStorage para evitar inconsistencias
   const [localToken, setLocalToken] = useState<string | null>(() => localStorage.getItem('token'));
-
-  // Estado y referencia para chat de voz
-  const [voiceChatState, setVoiceChatState] = useState<VoiceChatState>({
-    isConnected: false,
-    isRecording: false,
-    isPlaying: false,
-    isListening: false,
-    isSpeaking: false,
-    messages: [],
-    error: null
-  });
+  
+  // Estados del chat de voz
+  const [isRecording, setIsRecording] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const voiceChatServiceRef = useRef<VoiceChatService | null>(null);
 
-  const getToken = useCallback(() => {
-    return token || localToken || localStorage.getItem('token');
-  }, [token, localToken]);
+  const getToken = useCallback(() => token || localToken || localStorage.getItem('token'), [token, localToken]);
 
   useEffect(() => {
     const syncToken = () => {
       const storedToken = localStorage.getItem('token');
-      if (storedToken !== localToken) {
-        setLocalToken(storedToken);
-      }
+      if (storedToken !== localToken) setLocalToken(storedToken);
     };
     window.addEventListener('storage', syncToken);
     return () => window.removeEventListener('storage', syncToken);
@@ -77,6 +67,7 @@ export const useAIChat = (token: string | null) => {
     localStorage.setItem(`chatHistory_${sessionId}`, JSON.stringify(chatHistory));
   }, [chatHistory, sessionId]);
 
+  // === Mensajes de texto ===
   const sendMessage = useCallback(async (message: string) => {
     if (!message.trim()) return;
 
@@ -86,21 +77,23 @@ export const useAIChat = (token: string | null) => {
       return;
     }
 
-    const userMessage: ChatMessage = {
+    const userMessage: ChatMessageExtended = {
       id: chatHistory.length + 1,
       message: message.trim(),
       isBot: false,
-      timestamp: new Date()
+      timestamp: new Date(),
+      type: 'text'
     };
 
     setChatHistory(prev => [...prev, userMessage]);
 
     const botMessageId = chatHistory.length + 2;
-    const botMessage: ChatMessage = {
+    const botMessage: ChatMessageExtended = {
       id: botMessageId,
       message: '',
       isBot: true,
-      timestamp: new Date()
+      timestamp: new Date(),
+      type: 'text'
     };
     setChatHistory(prev => [...prev, botMessage]);
 
@@ -148,11 +141,12 @@ export const useAIChat = (token: string | null) => {
   }, [chatHistory.length, getToken]);
 
   const clearChat = useCallback(() => {
-    const defaultMessage: ChatMessage = {
+    const defaultMessage: ChatMessageExtended = {
       id: 1,
       message: '¡Hola! Soy tu Cazuela. 🤖\n\nPara usar el chat, necesitas iniciar sesión. Una vez autenticado, podré ayudarte con:\n• Información sobre productos\n• Recomendaciones personalizadas\n• Consultas sobre ingredientes\n• Ayuda con pedidos\n• Y mucho más...',
       isBot: true,
-      timestamp: new Date()
+      timestamp: new Date(),
+      type: 'text'
     };
     setChatHistory([defaultMessage]);
     setIsTyping(false);
@@ -169,105 +163,89 @@ export const useAIChat = (token: string | null) => {
     clearChat();
 
     stopVoiceChat();
-
   }, [clearChat, sessionId]);
 
-  // === Chat de voz ===
-
-  // Inicializar instancia VoiceChatService y listeners solo una vez
+  // === Chat de voz integrado ===
   const initVoiceChatService = useCallback(() => {
     if (!voiceChatServiceRef.current) {
       voiceChatServiceRef.current = new VoiceChatService();
 
+      // Cuando llega mensaje de audio del AI o usuario, se agrega al chatHistory
       voiceChatServiceRef.current.onMessage((message: VoiceChatMessage) => {
-        setVoiceChatState(prev => ({
-          ...prev,
-          messages: [...prev.messages, message]
-        }));
+        const newMessage: ChatMessageExtended = {
+          id: chatHistory.length + 1,
+          isBot: message.sender === 'ai',
+          timestamp: new Date(message.timestamp),
+          type: message.type === 'system' ? 'text' : message.type,
+          content: message.type === 'audio' ? message.content as ArrayBuffer : undefined,
+          message: message.type === 'text' ? message.content as string : (message.type === 'system' ? message.content as string : '')
+        };
+
+        setChatHistory(prev => [...prev, newMessage]);
       });
 
+      // Sincronización estado de grabación/reproducción
       voiceChatServiceRef.current.onStateChange((updates: Partial<VoiceChatState>) => {
-        setVoiceChatState(prev => ({ ...prev, ...updates }));
+        if (updates.isRecording !== undefined) {
+          setIsRecording(updates.isRecording);
+        }
+        if (updates.isPlaying !== undefined) {
+          setIsPlaying(updates.isPlaying);
+        }
       });
+    }
+  }, [chatHistory.length]);
+
+  const startRecording = useCallback(async () => {
+    try {
+      const currentToken = getToken();
+      if (!currentToken) {
+        toast.error('No tienes autorización para usar el chat. Por favor, inicia sesión.');
+        return false;
+      }
+
+      initVoiceChatService();
+      
+      if (voiceChatServiceRef.current) {
+        const success = await voiceChatServiceRef.current.startRecording();
+        if (success) {
+          toast.success('Grabando audio...');
+          return true;
+        } else {
+          toast.error('No se pudo iniciar la grabación');
+          return false;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error iniciando grabación:', error);
+      toast.error('Error al iniciar grabación');
+      return false;
+    }
+  }, [initVoiceChatService, getToken]);
+
+  const stopRecording = useCallback(() => {
+    if (voiceChatServiceRef.current) {
+      voiceChatServiceRef.current.stopRecording();
+      toast.success('Audio enviado, procesando...');
     }
   }, []);
 
-  // Iniciar conexión chat voz
-  const startVoiceChat = useCallback(async () => {
-    try {
-      initVoiceChatService();
-      const connected = await voiceChatServiceRef.current!.connect();
-      if (connected) {
-        toast.success('Chat de voz iniciado');
-        return true;
-      }
-      toast.error('No se pudo conectar el chat de voz');
-      return false;
-    } catch (error) {
-      console.error('Error iniciando chat de voz:', error);
-      return false;
-    }
-  }, [initVoiceChatService]);
-
-  // Detener chat de voz y limpiar instancia
   const stopVoiceChat = useCallback(() => {
     if (voiceChatServiceRef.current) {
       voiceChatServiceRef.current.disconnect();
       voiceChatServiceRef.current = null;
     }
-    setVoiceChatState({
-      isConnected: false,
-      isRecording: false,
-      isPlaying: false,
-      isListening: false,
-      isSpeaking: false,
-      messages: [],
-      error: null
-    });
+    setIsRecording(false);
+    setIsPlaying(false);
   }, []);
 
-  // Control de grabación voz
-  const startRecording = useCallback(async () => {
-    if (!voiceChatServiceRef.current) {
-      const started = await startVoiceChat();
-      if (!started) return false;
-    }
-    return voiceChatServiceRef.current!.startContinuousListening();
-  }, [startVoiceChat]);
-
-  const stopRecording = useCallback(() => {
-    voiceChatServiceRef.current?.stopContinuousListening();
-  }, []);
-
-  const sendVoiceMessage = useCallback((text: string) => {
-    voiceChatServiceRef.current?.sendTextMessage(text);
-  }, []);
-
-  
-  // Conversación continua
-  const startContinuousChat = useCallback(async () => {
-    if (!voiceChatServiceRef.current) {
-      const started = await startVoiceChat();
-      if (!started) return false;
-    }
-    return voiceChatServiceRef.current!.startContinuousListening();
-  }, [startVoiceChat]);
-
-  const stopContinuousChat = useCallback(() => {
-    voiceChatServiceRef.current?.stopContinuousListening();
-  }, []);
-
-  // Reproducir último audio recibido
-  const playLastAudio = useCallback(async () => {
-    if (!voiceChatServiceRef.current) return false;
-    const lastAudioMessage = voiceChatServiceRef.current.getLastAudioMessage();
-    if (lastAudioMessage?.content instanceof ArrayBuffer) {
-      await voiceChatServiceRef.current.playReceivedAudio(lastAudioMessage.content);
-      return true;
-    }
-    toast.error('No hay audio recibido para reproducir');
-    return false;
-  }, []);
+  // Limpiar al desmontar
+  useEffect(() => {
+    return () => {
+      stopVoiceChat();
+    };
+  }, [stopVoiceChat]);
 
   return {
     sessionId,
@@ -277,14 +255,10 @@ export const useAIChat = (token: string | null) => {
     sendMessage,
     clearChat,
     closeChatSession,
-    voiceChatState,
-    startVoiceChat,
-    stopVoiceChat,
     startRecording,
     stopRecording,
-    sendVoiceMessage,
-    startContinuousChat,
-    stopContinuousChat,
-    playLastAudio
+    stopVoiceChat,
+    isRecording,
+    isPlaying
   };
 };
