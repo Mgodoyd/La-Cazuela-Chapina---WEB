@@ -1,9 +1,9 @@
 export interface CustomTamal {
-  name?: string;           
-  description?: string;    
+  name?: string;
+  description?: string;
   price: number;
   active: boolean;
-  stock?: number;         
+  stock?: number;
   doughType: 'amarillo' | 'negro' | 'blanco' | 'rojo';
   filling: 'cerdo' | 'pollo' | 'res' | 'vegetariano' | 'queso';
   wrapper: 'plátano' | 'hoja' | 'maíz';
@@ -12,11 +12,11 @@ export interface CustomTamal {
 }
 
 export interface CustomBeverage {
-  name?: string;          
-  description?: string;    
+  name?: string;
+  description?: string;
   price: number;
   active: boolean;
-  stock?: number;          
+  stock?: number;
   type: 'atole' | 'agua' | 'jugo' | 'café';
   sweetener: 'panela' | 'azúcar' | 'miel' | 'sin endulzar';
   topping: 'canela' | 'chocolate' | 'frutas' | 'crema' | 'ninguno';
@@ -29,11 +29,11 @@ export interface CustomProductResponse {
 }
 
 export interface CustomProductRequest {
-  name?: string;           
-  description?: string;    
+  name?: string;
+  description?: string;
   price: number;
   active: boolean;
-  stock?: number;          
+  stock?: number;
   // Tamal específico
   doughType?: 'amarillo' | 'negro' | 'blanco' | 'rojo';
   filling?: 'cerdo' | 'pollo' | 'res' | 'vegetariano' | 'queso';

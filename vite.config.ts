@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -12,7 +12,7 @@ export default defineConfig({
         secure: false,
         // Si tu backend espera /api/v1, no uses rewrite; si no, ajusta aquí
         // rewrite: (path) => path.replace(/^\/api/, ''),
-      }
-    }
-  }
-})
+      },
+    },
+  },
+});

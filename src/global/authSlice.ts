@@ -1,31 +1,31 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type {
   AuthState,
   LoginCredentials,
   RegisterData,
   AuthResponse,
-} from "../types/auth";
+} from '../types/auth';
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const initialState: AuthState = {
-  id: localStorage.getItem("id") ? parseInt(localStorage.getItem("id")!) : null,
+  id: localStorage.getItem('id') ? parseInt(localStorage.getItem('id')!) : null,
   user: null,
-  token: localStorage.getItem("token"),
-  refreshToken: localStorage.getItem("refreshToken"),
+  token: localStorage.getItem('token'),
+  refreshToken: localStorage.getItem('refreshToken'),
   loading: false,
   error: null,
   success: null,
 };
 
 export const loginUser = createAsyncThunk(
-  "auth/loginUser",
+  'auth/loginUser',
   async (credentials: LoginCredentials, { rejectWithValue }) => {
     try {
       const response = await fetch(`${API_URL}/user/login`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(credentials),
       });
@@ -35,43 +35,44 @@ export const loginUser = createAsyncThunk(
       if (!response.ok) {
         if (response.status === 401)
           return rejectWithValue(
-            "Credenciales incorrectas. Verifica tu email y contraseña."
+            'Credenciales incorrectas. Verifica tu email y contraseña.'
           );
         if (response.status === 404)
-          return rejectWithValue("Usuario no encontrado. Verifica tu email.");
+          return rejectWithValue('Usuario no encontrado. Verifica tu email.');
         if (response.status === 400)
-          return rejectWithValue(data.message || "Datos de entrada inválidos.");
+          return rejectWithValue(data.message || 'Datos de entrada inválidos.');
         if (response.status >= 500)
-          return rejectWithValue("Error del servidor. Intenta más tarde.");
+          return rejectWithValue('Error del servidor. Intenta más tarde.');
       }
 
       return data as AuthResponse;
     } catch (error) {
       if (error instanceof Error) {
-        if (error.message.includes("fetch")) return rejectWithValue("Error de conexión. Verifica tu internet.");
-        
-        return rejectWithValue("Error inesperado. Intenta nuevamente.");
+        if (error.message.includes('fetch'))
+          return rejectWithValue('Error de conexión. Verifica tu internet.');
+
+        return rejectWithValue('Error inesperado. Intenta nuevamente.');
       }
-      return rejectWithValue("Error desconocido.");
+      return rejectWithValue('Error desconocido.');
     }
   }
 );
 
 export const refreshToken = createAsyncThunk(
-  "auth/refreshToken",
+  'auth/refreshToken',
   async (_, { rejectWithValue, getState }) => {
     try {
       const state = getState() as { auth: AuthState };
       const currentRefreshToken = state.auth.refreshToken;
       const currentToken = state.auth.token;
 
-      if (!currentRefreshToken) return rejectWithValue("No hay refresh token disponible");
-     
+      if (!currentRefreshToken)
+        return rejectWithValue('No hay refresh token disponible');
 
       const response = await fetch(`${API_URL}/user/refresh`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           RefreshToken: currentRefreshToken,
@@ -82,84 +83,94 @@ export const refreshToken = createAsyncThunk(
       const data = await response.json();
 
       if (!response.ok) {
-        if (response.status === 401) return rejectWithValue("Refresh token expirado o inválido. Debes iniciar sesión nuevamente.");
-        if (response.status === 400) return rejectWithValue(
-            data.Error || data.message || "Token inválido."
+        if (response.status === 401)
+          return rejectWithValue(
+            'Refresh token expirado o inválido. Debes iniciar sesión nuevamente.'
           );
-        if (response.status >= 500) return rejectWithValue("Error del servidor. Intenta más tarde.");
+        if (response.status === 400)
+          return rejectWithValue(
+            data.Error || data.message || 'Token inválido.'
+          );
+        if (response.status >= 500)
+          return rejectWithValue('Error del servidor. Intenta más tarde.');
         return rejectWithValue(
-            data.Error || data.message || "Error al refrescar el token."
-          );
+          data.Error || data.message || 'Error al refrescar el token.'
+        );
       }
       return data as AuthResponse;
     } catch (error) {
       if (error instanceof Error) {
-        if (error.message.includes("fetch")) return rejectWithValue("Error de conexión. Verifica tu internet.");
-        return rejectWithValue("Error inesperado. Intenta nuevamente.");
+        if (error.message.includes('fetch'))
+          return rejectWithValue('Error de conexión. Verifica tu internet.');
+        return rejectWithValue('Error inesperado. Intenta nuevamente.');
       }
-      return rejectWithValue("Error desconocido.");
+      return rejectWithValue('Error desconocido.');
     }
   }
 );
 
 export const registerUser = createAsyncThunk(
-  "auth/registerUser",
+  'auth/registerUser',
   async (userData: RegisterData, { rejectWithValue }) => {
     try {
       const userDataWithRole = {
         ...userData,
-        role: "Customer" as const,
+        role: 'Customer' as const,
       };
 
       const response = await fetch(`${API_URL}/user/register`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(userDataWithRole),
       });
 
       const data = await response.json();
 
-      if (!response.ok) { 
-        if (response.status === 400) return rejectWithValue("El email ya está registrado. Usa otro email o inicia sesión.");
-        if (response.status >= 500) return rejectWithValue("Error del servidor. Intenta más tarde.");
-        return rejectWithValue(data.message || "Error al crear la cuenta.");
+      if (!response.ok) {
+        if (response.status === 400)
+          return rejectWithValue(
+            'El email ya está registrado. Usa otro email o inicia sesión.'
+          );
+        if (response.status >= 500)
+          return rejectWithValue('Error del servidor. Intenta más tarde.');
+        return rejectWithValue(data.message || 'Error al crear la cuenta.');
       }
 
       return data as AuthResponse;
     } catch (error) {
-      if (error instanceof Error) { 
-        if (error.message.includes("fetch")) return rejectWithValue("Error de conexión. Verifica tu internet.");
-        return rejectWithValue("Error inesperado. Intenta nuevamente.");
+      if (error instanceof Error) {
+        if (error.message.includes('fetch'))
+          return rejectWithValue('Error de conexión. Verifica tu internet.');
+        return rejectWithValue('Error inesperado. Intenta nuevamente.');
       }
-      return rejectWithValue("Error desconocido.");
+      return rejectWithValue('Error desconocido.');
     }
   }
 );
 
 export const restoreSession = createAsyncThunk(
-  "auth/restoreSession",
+  'auth/restoreSession',
   async (_, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem("token");
-      const userData = localStorage.getItem("user");
-      const refreshToken = localStorage.getItem("refreshToken");
-      const id = localStorage.getItem("id");
+      const token = localStorage.getItem('token');
+      const userData = localStorage.getItem('user');
+      const refreshToken = localStorage.getItem('refreshToken');
+      const id = localStorage.getItem('id');
 
-      if (!token || !userData) return rejectWithValue("No hay sesión activa");
-      
+      if (!token || !userData) return rejectWithValue('No hay sesión activa');
 
       const user = JSON.parse(userData);
       return { token, user, refreshToken, id: id ? parseInt(id) : null };
     } catch (error) {
-      return rejectWithValue("Error al restaurar la sesión");
+      return rejectWithValue('Error al restaurar la sesión');
     }
   }
 );
 
 const authSlice = createSlice({
-  name: "auth",
+  name: 'auth',
   initialState,
   reducers: {
     logout: (state) => {
@@ -168,12 +179,12 @@ const authSlice = createSlice({
       state.token = null;
       state.refreshToken = null;
       state.error = null;
-      localStorage.removeItem("token");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("user");
-      localStorage.removeItem("id");
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      localStorage.removeItem('id');
       const chatSessionKey = Object.keys(localStorage).find((key) =>
-        key.startsWith("chatSession_")
+        key.startsWith('chatSession_')
       );
       if (chatSessionKey) {
         localStorage.removeItem(chatSessionKey);
@@ -201,20 +212,20 @@ const authSlice = createSlice({
 
         state.token = action.payload.data.token;
         state.refreshToken = action.payload.data.refreshToken;
-        localStorage.setItem("token", action.payload.data.token);
-        localStorage.setItem("user", JSON.stringify(state.user));
-        localStorage.setItem("refreshToken", action.payload.data.refreshToken);
-        localStorage.setItem("id", action.payload.data.id.toString());
+        localStorage.setItem('token', action.payload.data.token);
+        localStorage.setItem('user', JSON.stringify(state.user));
+        localStorage.setItem('refreshToken', action.payload.data.refreshToken);
+        localStorage.setItem('id', action.payload.data.id.toString());
         console.log(
-          "Slice: state updated - user:",
+          'Slice: state updated - user:',
           state.user,
-          "token:",
+          'token:',
           state.token
         );
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) || "Error al iniciar sesión.";
+        state.error = (action.payload as string) || 'Error al iniciar sesión.';
       })
       // Register
       .addCase(registerUser.pending, (state) => {
@@ -231,7 +242,7 @@ const authSlice = createSlice({
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) || "Error al crear la cuenta.";
+        state.error = (action.payload as string) || 'Error al crear la cuenta.';
       })
       // Restore Session
       .addCase(restoreSession.fulfilled, (state, action) => {
@@ -265,7 +276,7 @@ const authSlice = createSlice({
           (responseData as any).RefreshToken;
 
         if (!newToken || !newRefreshToken) {
-          state.error = "Error: Tokens no válidos en la respuesta del servidor";
+          state.error = 'Error: Tokens no válidos en la respuesta del servidor';
           return;
         }
 
@@ -274,19 +285,19 @@ const authSlice = createSlice({
         state.error = null;
 
         try {
-          localStorage.setItem("token", newToken);
-          localStorage.setItem("refreshToken", newRefreshToken);
+          localStorage.setItem('token', newToken);
+          localStorage.setItem('refreshToken', newRefreshToken);
         } catch (error) {
-          console.error("❌ Error al guardar tokens en localStorage:", error);
+          console.error('❌ Error al guardar tokens en localStorage:', error);
         }
       })
       .addCase(refreshToken.rejected, (state, action) => {
         state.loading = false;
         state.error =
-          (action.payload as string) || "Error al refrescar el token";
+          (action.payload as string) || 'Error al refrescar el token';
         state.token = null;
         state.refreshToken = null;
-        localStorage.clean()
+        localStorage.clean();
       });
   },
 });

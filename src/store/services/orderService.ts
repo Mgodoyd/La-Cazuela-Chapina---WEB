@@ -1,22 +1,22 @@
-import { ApiService } from "../api/apiService";
-import type { Order, OrderResponse } from "../types/order";
+import { ApiService } from '../../global/api/apiService';
+import type { Order, OrderResponse } from '../types/order';
 
 export class OrderService {
   // Crear una nueva orden
   static async createOrder(orderData: any): Promise<OrderResponse> {
     try {
-      const response = await ApiService.post("/order/create", orderData, true);
+      const response = await ApiService.post('/order/create', orderData, true);
       return response;
     } catch (error) {
-      console.error("Error creando orden:", error);
-      return { status: "error", data: [] };
+      console.error('Error creando orden:', error);
+      return { status: 'error', data: [] };
     }
   }
 
   // Obtener órdenes del usuario
   static async getUserOrders(userId: string): Promise<Order[]> {
     try {
-      const response: OrderResponse = await ApiService.get("/order", true);
+      const response: OrderResponse = await ApiService.get('/order', true);
       const allOrders = response.data || [];
       // console.log(allOrders);
       // console.log(userId);
@@ -27,7 +27,7 @@ export class OrderService {
           order.userId && order.userId.toLowerCase() === userId.toLowerCase()
       );
     } catch (error) {
-      console.error("Error obteniendo órdenes:", error);
+      console.error('Error obteniendo órdenes:', error);
       return [];
     }
   }
@@ -38,8 +38,8 @@ export class OrderService {
       const response = await ApiService.get(`/order/${orderId}`, true);
       return response;
     } catch (error) {
-      console.error("Error obteniendo orden:", error);
-      return { status: "error", data: [] };
+      console.error('Error obteniendo orden:', error);
+      return { status: 'error', data: [] };
     }
   }
 }

@@ -1,9 +1,16 @@
-import { ApiService } from '../api/apiService';
-import type { CustomTamal, CustomBeverage, CustomProductRequest, CustomProductResponse } from '../types/customProducts';
+import { ApiService } from '../../global/api/apiService';
+import type {
+  CustomTamal,
+  CustomBeverage,
+  CustomProductRequest,
+  CustomProductResponse,
+} from '../types/customProducts';
 
 export class CustomProductService {
   // Crear tamal personalizado
-  static async createCustomTamal(tamalData: CustomProductRequest): Promise<CustomProductResponse> {
+  static async createCustomTamal(
+    tamalData: CustomProductRequest
+  ): Promise<CustomProductResponse> {
     try {
       const response = await ApiService.post('/product/tamal', tamalData, true);
       return response;
@@ -14,9 +21,15 @@ export class CustomProductService {
   }
 
   // Crear bebida personalizada
-  static async createCustomBeverage(beverageData: CustomProductRequest): Promise<CustomProductResponse> {
+  static async createCustomBeverage(
+    beverageData: CustomProductRequest
+  ): Promise<CustomProductResponse> {
     try {
-      const response = await ApiService.post('/product/beverage', beverageData, true);
+      const response = await ApiService.post(
+        '/product/beverage',
+        beverageData,
+        true
+      );
       return response;
     } catch (error) {
       console.error('Error creando bebida personalizada:', error);

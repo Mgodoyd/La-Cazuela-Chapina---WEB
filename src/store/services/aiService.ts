@@ -1,16 +1,15 @@
-import { ApiService } from "../api/apiService";
+import { ApiService } from '../../global/api/apiService';
 
 export class AIService {
-  
   // Método para stream de respuestas
   private static async streamResponse(
     message: string,
     _token: string
   ): Promise<ReadableStream<Uint8Array>> {
     try {
-      return await ApiService.stream("/ai/stream", { message });
+      return await ApiService.stream('/ai/stream', { message });
     } catch (error) {
-      console.error("Error connecting to AI stream:", error);
+      console.error('Error connecting to AI stream:', error);
       throw error;
     }
   }
@@ -27,13 +26,13 @@ export class AIService {
       const stream = await this.streamResponse(message, token);
       const reader = stream.getReader();
       const decoder = new TextDecoder();
-      let fullResponse = "";
+      let fullResponse = '';
 
       while (true) {
         const { done, value } = await reader.read();
 
         if (done) {
-          console.log("Stream terminado (done = true)");
+          console.log('Stream terminado (done = true)');
           break;
         }
 
@@ -42,15 +41,14 @@ export class AIService {
           const chunk = decoder.decode(value);
 
           // Dividir por líneas y procesar cada una
-          const lines = chunk.split("\n").filter((line) => line.trim());
+          const lines = chunk.split('\n').filter((line) => line.trim());
 
           for (const line of lines) {
-
             // Si la línea comienza con 'data: ', es formato Server-Sent Events
-            if (line.startsWith("data: ")) {
+            if (line.startsWith('data: ')) {
               const jsonData = line.slice(6); // Remover 'dat
 
-              if (jsonData === "[DONE]") {
+              if (jsonData === '[DONE]') {
                 onComplete(fullResponse);
                 return;
               }
@@ -75,15 +73,15 @@ export class AIService {
             }
           }
         } catch (chunkError) {
-          console.warn("Error processing chunk:", chunkError);
+          console.warn('Error processing chunk:', chunkError);
         }
       }
 
       onComplete(fullResponse);
     } catch (error) {
-      console.error("Error in AI stream:", error);
+      console.error('Error in AI stream:', error);
       onError(
-        error instanceof Error ? error.message : "Error desconocido en la IA"
+        error instanceof Error ? error.message : 'Error desconocido en la IA'
       );
     }
   }
@@ -91,14 +89,14 @@ export class AIService {
   // Método alternativo para respuestas simples (no streaming)
   public static async sendSimpleMessage(message: string): Promise<string> {
     try {
-      const response = await ApiService.post("/ai/chat", { message });
+      const response = await ApiService.post('/ai/chat', { message });
       return (
         response.response ||
         response.message ||
-        "No se pudo obtener respuesta de la IA"
+        'No se pudo obtener respuesta de la IA'
       );
     } catch (error) {
-      console.error("Error sending simple message:", error);
+      console.error('Error sending simple message:', error);
       throw error;
     }
   }
