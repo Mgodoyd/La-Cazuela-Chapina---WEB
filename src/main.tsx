@@ -1,4 +1,4 @@
-import { StrictMode, Suspense, lazy, useEffect } from 'react';
+import { StrictMode, Suspense, lazy, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import { Provider } from 'react-redux';
@@ -7,28 +7,56 @@ import { restoreSession } from './global/authSlice';
 
 const APP_MODE = import.meta.env.VITE_APP_MODE as 'store' | 'dashboard';
 
-const App = lazy(() => import(`./${APP_MODE}/App`));
+// const App = lazy(() => import(`./${APP_MODE}/App`));
+const apps = {
+  store: () => import('./store/App'),
+  dashboard: () => import('./dashboard/App'),
+};
+
+const App = lazy(apps[APP_MODE]);
+
 // const App = lazy(() => import(`./store/App`))
 // const App = lazy(() => import(`./dashboard/App`))
 function AppWrapper() {
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      store.dispatch(restoreSession());
-    }
-  }, []);
+  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    const token = store.getState().auth.token;
-    const user = store.getState().auth.user;
+    let active = true;
 
-    if (token && user) {
-      if (APP_MODE === 'dashboard' && user.role !== 'Admin') {
-        window.location.href = '/store';
-        return;
+    const hydrateSession = async () => {
+      try {
+        await store.dispatch(restoreSession()).unwrap();
+      } catch {
+      } finally {
+        if (active) {
+          setSessionReady(true);
+        }
       }
-    }
+    };
+
+    hydrateSession();
+
+    return () => {
+      active = false;
+    };
   }, []);
+
+  useEffect(() => {
+    if (!sessionReady) return;
+    const { token, user } = store.getState().auth;
+    if (token && user && APP_MODE === 'dashboard' && user.role !== 'Admin') {
+      window.location.href = '/store';
+    }
+  }, [sessionReady]);
+
+  if (!sessionReady) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center gap-4">
+        <div className="h-12 w-12 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+        <p className="text-sm text-white/60">Preparando tu sesion...</p>
+      </div>
+    );
+  }
 
   return <App />;
 }

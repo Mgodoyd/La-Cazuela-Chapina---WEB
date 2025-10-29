@@ -263,7 +263,6 @@ Sistema de caché local para productos personalizables:
 ### **Gestión de Proveedores**
 - Catálogo de proveedores
 - Información de contacto
-
 ## 📈 **Métricas y Monitoreo**
 
 ### **Logs Implementados**
@@ -289,4 +288,4 @@ Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
 
 **Desarrollado con ❤️ para La Cazuela Chapina**
 
-_Última actualización: Agosto 2025_
+*Última actualización: Agosto 2025*

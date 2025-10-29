@@ -1,12 +1,12 @@
 class SecurityService {
-  private static readonly ENCRYPTION_KEY = 'cazuela_chapina_2024';
+  private static readonly ENCRYPTION_KEY = 'cazuela_chapina_2025';
   private static readonly ALGORITHM = 'AES-GCM';
   private static readonly IV_LENGTH = 12;
 
   // Generar clave de encriptación derivada
   private static async deriveKey(
     password: string,
-    _salt: Uint8Array
+    salt: Uint8Array
   ): Promise<CryptoKey> {
     const baseKey = await crypto.subtle.importKey(
       'raw',
@@ -21,6 +21,7 @@ class SecurityService {
         name: 'PBKDF2',
         iterations: 100000,
         hash: 'SHA-256',
+        salt,
       },
       baseKey,
       { name: this.ALGORITHM, length: 256 },
@@ -172,7 +173,6 @@ export class SecureStorage {
         localStorage.removeItem(key);
       }
     });
-    SecurityService.clearSensitiveData();
   }
 
   static hasItem(key: string): boolean {
