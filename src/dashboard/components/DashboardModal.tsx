@@ -21,8 +21,15 @@ import type { DashboardModalProps } from '../types/modals';
 import { ModalFrame } from './ModalFrame';
 
 
-//colores para los graficos
-const CHART_COLORS = ['#0f172a', '#2563eb', '#f59e0b', '#10b981', '#8b5cf6', '#f97316'];
+//colores para los graficos de recharts
+const CHART_COLORS = [
+  '#0f172a',
+  '#2563eb',
+  '#f59e0b',
+  '#10b981',
+  '#8b5cf6',
+  '#f97316',
+];
 
 const chartsPerPage = 2;
 
@@ -101,7 +108,7 @@ export default function DashboardModal({ onClose }: DashboardModalProps) {
   const isSpicy = (name: string) =>
     /(picante|chapin|spicy|rojo|verde)/i.test(name);
 
-  const dailySales: AggregatedPoint[] = useMemo(() => {
+  const dailySales: { label: string; value: number }[] = useMemo(() => {
     const map = new Map<string, number>();
     for (const order of orders) {
       const created = new Date(order.createdAt || '');
@@ -114,7 +121,7 @@ export default function DashboardModal({ onClose }: DashboardModalProps) {
       .map(([label, value]) => ({ label, value }));
   }, [orders]);
 
-  const monthlySales: AggregatedPoint[] = useMemo(() => {
+  const monthlySales: { label: string; value: number }[] = useMemo(() => {
     const map = new Map<string, number>();
     for (const order of orders) {
       const created = new Date(order.createdAt || '');
