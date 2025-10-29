@@ -50,7 +50,7 @@ export class ApiService {
         });
 
         if (!refreshResp.ok) {
-          store.dispatch(logout());
+          store.dispatch(logout('Tu sesion ha expirado. Por favor inicia sesion nuevamente.'));
           throw new Error(`Refresh failed ${refreshResp.status}`);
         }
 
@@ -66,7 +66,7 @@ export class ApiService {
           refreshData?.RefreshToken;
 
         if (!refreshedToken || !refreshedRefresh) {
-          store.dispatch(logout());
+          store.dispatch(logout('Tu sesion ha expirado. Por favor inicia sesion nuevamente.'));
           throw new Error('Invalid refresh response');
         }
 
@@ -90,18 +90,18 @@ export class ApiService {
           if (retryResponse.ok) {
             return retryResponse;
           } else {
-            store.dispatch(logout());
+            store.dispatch(logout('Tu sesion ha expirado. Por favor inicia sesion nuevamente.'));
             throw new Error(
               'Token inválido después del refresh. Sesión cerrada.'
             );
           }
         } else {
-          store.dispatch(logout());
+          store.dispatch(logout('Tu sesion ha expirado. Por favor inicia sesion nuevamente.'));
           throw new Error('No se pudo obtener nuevo token. Sesión cerrada.');
         }
       } catch (error) {
         console.log('❌ Error al refrescar token:', error);
-        store.dispatch(logout());
+        store.dispatch(logout('Tu sesion ha expirado. Por favor inicia sesion nuevamente.'));
       }
     }
     return response;
@@ -215,3 +215,4 @@ export class ApiService {
     return response.body;
   }
 }
+

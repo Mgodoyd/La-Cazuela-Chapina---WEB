@@ -1,37 +1,65 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DashboardProductService } from '../services/productService';
 import { ApiService } from '../../global/api/apiService';
 import type { DashboardProduct } from '../types/product';
 import toast from 'react-hot-toast';
 import { confirmToast } from '../utils/confirmToast';
 import type { ProductsModalProps } from '../types/modals';
+import { ModalFrame, ModalFooter } from './ModalFrame';
+
+type FormMode = 'closed' | 'create' | 'edit';
+
+const emptyForm: Omit<DashboardProduct, 'id' | 'createdAt'> = {
+  name: '',
+  description: '',
+  price: 0,
+  active: true,
+  stock: 0,
+};
+
+const primaryButtonClass =
+  'inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/15';
+
+const secondaryButtonClass =
+  'inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/10';
+
+const ragButtonClass =
+  'inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-sky-500 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-sky-500/30';
+
+const deleteButtonClass =
+  'inline-flex items-center justify-center rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500/20';
+
+const pillClass =
+  'inline-flex items-center justify-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600';
+
+const currency = new Intl.NumberFormat('es-GT', {
+  style: 'currency',
+  currency: 'GTQ',
+});
+
+const formatDate = (raw?: string) => {
+  if (!raw) return 'Sin fecha';
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleString('es-GT', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+};
 
 export default function ProductsModal({ onClose }: ProductsModalProps) {
   const [products, setProducts] = useState<DashboardProduct[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState<FormMode>('closed');
+  const [form, setForm] =
+    useState<Omit<DashboardProduct, 'id' | 'createdAt'>>({ ...emptyForm });
   const [editing, setEditing] = useState<DashboardProduct | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState<Omit<DashboardProduct, 'id' | 'createdAt'>>({
-    name: '',
-    description: '',
-    price: 0,
-    active: true,
-    stock: 0,
-  });
   const [page, setPage] = useState(1);
-  const pageSize = 5;
+  const pageSize = 6;
   const [ragLoading, setRagLoading] = useState(false);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await DashboardProductService.getProducts();
-        setProducts(data);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    void refresh();
   }, []);
 
   const refresh = async () => {
@@ -44,69 +72,81 @@ export default function ProductsModal({ onClose }: ProductsModalProps) {
     }
   };
 
-  const startCreate = () => {
-    setForm({ name: '', description: '', price: 0, active: true, stock: 0 });
-    setCreating(true);
+  const totalProducts = products.length;
+  const totalPages = Math.max(1, Math.ceil(totalProducts / pageSize));
+
+  const visibleProducts = useMemo(
+    () => products.slice((page - 1) * pageSize, page * pageSize),
+    [products, page, pageSize]
+  );
+
+  const openCreate = () => {
+    setForm({ ...emptyForm });
     setEditing(null);
-    const modal = document.getElementById('create-product-modal');
-    if (modal) modal.classList.remove('hidden');
+    setMode('create');
   };
 
-  const startEdit = (p: DashboardProduct) => {
+  const openEdit = (product: DashboardProduct) => {
+    setEditing(product);
     setForm({
-      name: p.name,
-      description: p.description,
-      price: p.price,
-      active: p.active,
-      stock: p.stock,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      active: product.active,
+      stock: product.stock,
     });
-    setEditing(p);
-    // Abrir un modal independiente para edición
-    const modal = document.getElementById('edit-product-modal');
-    if (modal) modal.classList.remove('hidden');
+    setMode('edit');
+  };
+
+  const closeForm = () => {
+    setMode('closed');
+    setEditing(null);
+    setForm({ ...emptyForm });
   };
 
   const handleDelete = async (id: string) => {
     const okConfirm = await confirmToast(
-      '¿Eliminar este producto? Esta acción no se puede deshacer.'
+      'Eliminar este producto? Esta accion no se puede deshacer.'
     );
     if (!okConfirm) return;
     try {
       const ok = await DashboardProductService.deleteProduct(id);
       if (ok) {
         toast.success('Producto eliminado');
-        refresh();
+        await refresh();
       } else {
-        toast.error('No se pudo eliminar');
+        toast.error('No se pudo eliminar el producto');
       }
-    } catch (e: any) {
-      toast.error(`Error al eliminar: ${e?.message || 'desconocido'}`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Error desconocido';
+      toast.error(`Error al eliminar: ${message}`);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     try {
       let ok = false;
-      if (editing) {
+      if (mode === 'edit' && editing) {
         ok = await DashboardProductService.updateProduct(editing.id, form);
-      } else {
+      } else if (mode === 'create') {
         ok = await DashboardProductService.createProduct(form);
       }
+
       if (ok) {
-        toast.success(editing ? 'Producto actualizado' : 'Producto creado');
-        setCreating(false);
-        setEditing(null);
-        const modal = document.getElementById('edit-product-modal');
-        if (modal) modal.classList.add('hidden');
-        const modalCreate = document.getElementById('create-product-modal');
-        if (modalCreate) modalCreate.classList.add('hidden');
-        refresh();
+        toast.success(
+          mode === 'edit' ? 'Producto actualizado' : 'Producto creado'
+        );
+        closeForm();
+        await refresh();
       } else {
-        toast.error('Operación fallida');
+        toast.error('No se pudo completar la operacion');
       }
-    } catch (e: any) {
-      toast.error(`Error al guardar: ${e?.message || 'desconocido'}`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Error desconocido';
+      toast.error(`Error al guardar: ${message}`);
     }
   };
 
@@ -123,373 +163,294 @@ export default function ProductsModal({ onClose }: ProductsModalProps) {
       } else {
         toast.success('RAG IA enviado');
       }
-    } catch (e: any) {
-      toast.error(`Error al ejecutar RAG IA: ${e?.message || 'desconocido'}`);
-      console.error(e);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Error desconocido';
+      toast.error(`Error al ejecutar RAG IA: ${message}`);
     } finally {
       setRagLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl w-full max-w-4xl border border-white/20">
-        <div className="p-6 border-b border-white/10 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-white">Productos</h2>
-          <div className="flex items-center gap-3">
+    <>
+      <ModalFrame
+        title="Productos"
+        description="Gestiona el catalogo, precios y disponibilidad en un solo lugar."
+        onClose={onClose}
+        actions={
+          <>
             <button
+              type="button"
               onClick={handleRagImport}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-600 text-white font-semibold shadow hover:brightness-110"
+              className={ragButtonClass}
             >
               Rag IA
             </button>
             <button
-              onClick={onClose}
-              className="text-white/70 hover:text-white text-2xl"
+              type="button"
+              onClick={openCreate}
+              className={primaryButtonClass}
             >
-              ×
+              Nuevo producto
             </button>
+          </>
+        }
+        width="xl"
+      >
+        {loading ? (
+          <div className="flex min-h-[240px] items-center justify-center text-sm text-slate-500">
+            Cargando productos...
           </div>
-        </div>
-
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <div />
-            <button
-              onClick={startCreate}
-              className="px-4 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700"
-            >
-              Nuevo Producto
-            </button>
+        ) : totalProducts === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 py-12 text-center text-sm text-slate-500">
+            Aún no tienes productos en el catalogo. Crea uno nuevo para
+            comenzar.
           </div>
-          {loading ? (
-            <div className="text-center text-gray-300">Cargando...</div>
-          ) : products.length === 0 ? (
-            <div className="text-center text-gray-300">No hay productos</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-white/10 text-white">
-                <thead className="bg-white/5">
+        ) : (
+          <div className="space-y-5">
+            <div className="overflow-hidden rounded-2xl border border-slate-200">
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-50 text-slate-500">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
+                    <th className="px-4 py-3 text-left font-semibold">
                       Nombre
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
-                      Descripción
+                    <th className="px-4 py-3 text-left font-semibold">
+                      Descripcion
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
+                    <th className="px-4 py-3 text-left font-semibold">
                       Precio
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
+                    <th className="px-4 py-3 text-left font-semibold">
                       Stock
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
+                    <th className="px-4 py-3 text-left font-semibold">
                       Activo
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
+                    <th className="px-4 py-3 text-left font-semibold">
                       Creado
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
+                    <th className="px-4 py-3 text-left font-semibold">
                       Acciones
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/10">
-                  {products
-                    .slice((page - 1) * pageSize, page * pageSize)
-                    .map((p, idx) => (
-                      <tr key={p.id || idx} className="hover:bg-white/5">
-                        <td className="px-4 py-3 font-medium">{p.name}</td>
-                        <td className="px-4 py-3 text-white/80">
-                          {p.description}
-                        </td>
-                        <td className="px-4 py-3">
-                          $
-                          {typeof p.price === 'number'
-                            ? p.price.toFixed(2)
-                            : Number(p.price || 0).toFixed(2)}
-                        </td>
-                        <td className="px-4 py-3">{p.stock}</td>
-                        <td className="px-4 py-3">{p.active ? 'Sí' : 'No'}</td>
-                        <td className="px-4 py-3">
-                          {p.createdAt
-                            ? new Date(p.createdAt).toLocaleString()
-                            : '-'}
-                        </td>
-                        <td className="px-4 py-3 space-x-2">
+                <tbody className="divide-y divide-slate-100 bg-white text-slate-700">
+                  {visibleProducts.map((product) => (
+                    <tr
+                      key={product.id ?? product.name}
+                      className="transition hover:bg-slate-50"
+                    >
+                      <td className="px-4 py-3 font-medium text-slate-900">
+                        {product.name}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {product.description || 'Sin descripcion'}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-slate-900">
+                        {currency.format(product.price)}
+                      </td>
+                      <td className="px-4 py-3">{product.stock}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`${pillClass} ${
+                            product.active
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-slate-200 text-slate-600'
+                          }`}
+                        >
+                          {product.active ? 'Sí' : 'No'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">{formatDate(product.createdAt)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
                           <button
-                            onClick={() => startEdit(p)}
-                            className="px-3 py-1 rounded-lg bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 text-slate-900 font-semibold shadow hover:brightness-110"
+                            type="button"
+                            onClick={() => openEdit(product)}
+                            className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/15"
                           >
                             Editar
                           </button>
                           <button
-                            onClick={() => handleDelete(p.id)}
-                            className="px-3 py-1 rounded-lg bg-gradient-to-r from-rose-500 to-red-600 text-white font-semibold shadow hover:brightness-110"
+                            type="button"
+                            onClick={() =>
+                              product.id ? handleDelete(product.id) : null
+                            }
+                            className={deleteButtonClass}
+                            disabled={!product.id}
                           >
                             Eliminar
                           </button>
-                        </td>
-                      </tr>
-                    ))}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
-              <div className="flex items-center justify-between mt-4 text-white/80">
-                <span className="text-sm">
-                  Página {page} de{' '}
-                  {Math.max(1, Math.ceil(products.length / pageSize))}
-                </span>
-                <div className="space-x-2">
-                  <button
-                    disabled={page === 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className="px-3 py-1 rounded-lg bg-white/10 border border-white/20 disabled:opacity-40"
-                  >
-                    Anterior
-                  </button>
-                  <button
-                    disabled={page >= Math.ceil(products.length / pageSize)}
-                    onClick={() => setPage((p) => p + 1)}
-                    className="px-3 py-1 rounded-lg bg-white/10 border border-white/20 disabled:opacity-40"
-                  >
-                    Siguiente
-                  </button>
-                </div>
+            </div>
+
+            <div className="flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+              <span>
+                Pagina {page} de {totalPages}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  disabled={page === 1}
+                  className={`${secondaryButtonClass} disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  Anterior
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPage((prev) => Math.min(totalPages, prev + 1))
+                  }
+                  disabled={page === totalPages}
+                  className={`${secondaryButtonClass} disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  Siguiente
+                </button>
               </div>
             </div>
-          )}
-        </div>
-        {/* Modal de creación independiente */}
-        <div
-          id="create-product-modal"
-          className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 ${creating ? '' : 'hidden'}`}
+          </div>
+        )}
+      </ModalFrame>
+
+      {mode !== 'closed' && (
+        <ModalFrame
+          title={
+            mode === 'create' ? 'Nuevo producto' : 'Editar producto existente'
+          }
+          description={
+            mode === 'create'
+              ? 'Completa los detalles del producto para añadirlo al catálogo.'
+              : 'Ajusta la información publicada del producto.'
+          }
+          onClose={closeForm}
+          width="lg"
         >
-          <div className="bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl w-full max-w-2xl border border-white/20">
-            <div className="p-6 border-b border-white/10 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-white">Crear Producto</h2>
-              <button
-                onClick={() => {
-                  const m = document.getElementById('create-product-modal');
-                  m && m.classList.add('hidden');
-                  setCreating(false);
-                }}
-                className="text-white/70 hover:text-white text-2xl"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6">
-              <form
-                onSubmit={handleSubmit}
-                className="grid grid-cols-1 md:grid-cols-2 gap-4 text-white"
-              >
-                <div>
-                  <label className="block text-sm mb-1">Nombre</label>
-                  <input
-                    value={form.name}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, name: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1">Precio</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={form.price}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, price: Number(e.target.value) }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
-                    required
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm mb-1">Descripción</label>
-                  <textarea
-                    value={form.description}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, description: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1">Stock</label>
-                  <input
-                    type="number"
-                    value={form.stock}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, stock: Number(e.target.value) }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1">Activo</label>
-                  <select
-                    value={String(form.active)}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        active: e.target.value === 'true',
-                      }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
-                  >
-                    <option value="true">Sí</option>
-                    <option value="false">No</option>
-                  </select>
-                </div>
-                <div className="md:col-span-2 flex justify-end gap-2 mt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const m = document.getElementById('create-product-modal');
-                      m && m.classList.add('hidden');
-                      setCreating(false);
-                    }}
-                    className="px-4 py-2 rounded-xl bg-gray-600 text-white hover:bg-gray-700"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-semibold shadow hover:brightness-110"
-                  >
-                    Crear
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-      {/* Modal de edición independiente */}
-      <div
-        id="edit-product-modal"
-        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden"
-      >
-        <div className="bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl w-full max-w-2xl border border-white/20">
-          <div className="p-6 border-b border-white/10 flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-white">Editar Producto</h2>
-            <button
-              onClick={() => {
-                const m = document.getElementById('edit-product-modal');
-                m && m.classList.add('hidden');
-                setEditing(null);
-              }}
-              className="text-white/70 hover:text-white text-2xl"
-            >
-              ×
-            </button>
-          </div>
-          <div className="p-6">
-            <form
-              onSubmit={handleSubmit}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4 text-white"
-            >
-              <div>
-                <label className="block text-sm mb-1">Nombre</label>
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Nombre
+                </label>
                 <input
                   value={form.name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, name: e.target.value }))
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, name: event.target.value }))
                   }
-                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm mb-1">Precio</label>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Precio
+                </label>
                 <input
                   type="number"
                   step="0.01"
                   value={form.price}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, price: Number(e.target.value) }))
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      price: Number(event.target.value),
+                    }))
                   }
-                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                   required
                 />
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm mb-1">Descripción</label>
+              <div className="md:col-span-2 flex flex-col gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Descripcion
+                </label>
                 <textarea
                   value={form.description}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, description: e.target.value }))
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      description: event.target.value,
+                    }))
                   }
-                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
                   rows={3}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                  placeholder="Ingredientes, porcion, notas para el equipo..."
                 />
               </div>
-              <div>
-                <label className="block text-sm mb-1">Stock</label>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Stock
+                </label>
                 <input
                   type="number"
                   value={form.stock}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, stock: Number(e.target.value) }))
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      stock: Number(event.target.value),
+                    }))
                   }
-                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm mb-1">Activo</label>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Estado
+                </label>
                 <select
                   value={String(form.active)}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      active: e.target.value === 'true',
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      active: event.target.value === 'true',
                     }))
                   }
-                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                 >
-                  <option value="true">Sí</option>
-                  <option value="false">No</option>
+                  <option value="true">Disponible</option>
+                  <option value="false">No disponible</option>
                 </select>
               </div>
-              <div className="md:col-span-2 flex justify-end gap-2 mt-2">
+            </div>
+
+            <ModalFooter>
+              <span>
+                {mode === 'create'
+                  ? 'Confirma que los datos estén completos antes de publicar.'
+                  : 'Los cambios afectarán de inmediato el catálogo activo.'}
+              </span>
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    const m = document.getElementById('edit-product-modal');
-                    m && m.classList.add('hidden');
-                    setEditing(null);
-                  }}
-                  className="px-4 py-2 rounded-xl bg-gray-600 text-white hover:bg-gray-700"
+                  onClick={closeForm}
+                  className={secondaryButtonClass}
                 >
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 text-slate-900 font-semibold shadow hover:brightness-110"
-                >
-                  Actualizar
+                <button type="submit" className={primaryButtonClass}>
+                  {mode === 'create' ? 'Crear producto' : 'Guardar cambios'}
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      </div>
+            </ModalFooter>
+          </form>
+        </ModalFrame>
+      )}
+
       {ragLoading && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60]">
-          <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6 text-white shadow-2xl">
-            <div className="flex items-center gap-3">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-              <span>Procesando RAG IA, por favor espera...</span>
-            </div>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm px-4">
+          <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-700 shadow-2xl">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
+            Procesando RAG IA, por favor espera...
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

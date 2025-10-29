@@ -1,18 +1,20 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import type {
   AuthState,
   LoginCredentials,
   RegisterData,
   AuthResponse,
 } from '../types/auth';
+import { SecureStorage } from '../utils/security';
+import { isTokenExpired } from '../utils/token';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const initialState: AuthState = {
-  id: localStorage.getItem('id') ? parseInt(localStorage.getItem('id')!) : null,
+  id: null,
   user: null,
-  token: localStorage.getItem('token'),
-  refreshToken: localStorage.getItem('refreshToken'),
+  token: null,
+  refreshToken: null,
   loading: false,
   error: null,
   success: null,
@@ -45,7 +47,22 @@ export const loginUser = createAsyncThunk(
           return rejectWithValue('Error del servidor. Intenta más tarde.');
       }
 
-      return data as AuthResponse;
+      const authData = data as AuthResponse;
+
+      await SecureStorage.setItem('token', authData.data.token);
+      await SecureStorage.setItem(
+        'refreshToken',
+        authData.data.refreshToken
+      );
+      await SecureStorage.setItem('user', {
+        id: authData.data.id,
+        name: authData.data.name,
+        email: authData.data.email,
+        role: authData.data.role,
+      });
+      await SecureStorage.setItem('id', authData.data.id);
+
+      return authData;
     } catch (error) {
       if (error instanceof Error) {
         if (error.message.includes('fetch'))
@@ -97,7 +114,21 @@ export const refreshToken = createAsyncThunk(
           data.Error || data.message || 'Error al refrescar el token.'
         );
       }
-      return data as AuthResponse;
+      const authData = data as AuthResponse;
+      const payload = (authData as any).data ?? authData;
+      const nextToken =
+        (payload as any).token ??
+        (payload as any).Token ??
+        (payload as any).accessToken;
+      const nextRefresh =
+        (payload as any).refreshToken ?? (payload as any).RefreshToken;
+
+      if (nextToken && nextRefresh) {
+        await SecureStorage.setItem('token', nextToken);
+        await SecureStorage.setItem('refreshToken', nextRefresh);
+      }
+
+      return authData;
     } catch (error) {
       if (error instanceof Error) {
         if (error.message.includes('fetch'))
@@ -154,17 +185,33 @@ export const restoreSession = createAsyncThunk(
   'auth/restoreSession',
   async (_, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
-      const userData = localStorage.getItem('user');
-      const refreshToken = localStorage.getItem('refreshToken');
-      const id = localStorage.getItem('id');
+      const [token, user, refreshToken, id] = await Promise.all([
+        SecureStorage.getItem('token'),
+        SecureStorage.getItem('user'),
+        SecureStorage.getItem('refreshToken'),
+        SecureStorage.getItem('id'),
+      ]);
 
-      if (!token || !userData) return rejectWithValue('No hay sesión activa');
+      if (!token || !user) {
+        return rejectWithValue('No hay sesion activa');
+      }
 
-      const user = JSON.parse(userData);
-      return { token, user, refreshToken, id: id ? parseInt(id) : null };
+      if (typeof token === 'string' && isTokenExpired(token, 30)) {
+        SecureStorage.clear();
+        return rejectWithValue('Tu sesion ha expirado. Inicia sesion nuevamente.');
+      }
+
+      const parsedId =
+        typeof id === 'number' ? id : id ? parseInt(`${id}`, 10) : null;
+
+      return {
+        token,
+        user,
+        refreshToken,
+        id: Number.isNaN(parsedId) ? null : parsedId,
+      };
     } catch (error) {
-      return rejectWithValue('Error al restaurar la sesión');
+      return rejectWithValue('Error al restaurar la sesion');
     }
   }
 );
@@ -173,12 +220,14 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    logout: (state) => {
+    logout: (state, action: PayloadAction<string | undefined>) => {
       state.id = null;
       state.user = null;
       state.token = null;
       state.refreshToken = null;
-      state.error = null;
+      state.error = action.payload ?? null;
+      state.success = null;
+      SecureStorage.clear();
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
@@ -210,18 +259,15 @@ const authSlice = createSlice({
           role: action.payload.data.role,
         };
 
+        state.id = action.payload.data.id;
         state.token = action.payload.data.token;
         state.refreshToken = action.payload.data.refreshToken;
-        localStorage.setItem('token', action.payload.data.token);
-        localStorage.setItem('user', JSON.stringify(state.user));
-        localStorage.setItem('refreshToken', action.payload.data.refreshToken);
-        localStorage.setItem('id', action.payload.data.id.toString());
-        console.log(
-          'Slice: state updated - user:',
-          state.user,
-          'token:',
-          state.token
-        );
+        // console.log(
+        //   'Slice: state updated - user:',
+        //   state.user,
+        //   'token:',
+        //   state.token
+        // );
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
@@ -245,6 +291,10 @@ const authSlice = createSlice({
         state.error = (action.payload as string) || 'Error al crear la cuenta.';
       })
       // Restore Session
+      .addCase(restoreSession.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(restoreSession.fulfilled, (state, action) => {
         state.user = action.payload.user;
         state.token = action.payload.token;
@@ -253,11 +303,13 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = null;
       })
-      .addCase(restoreSession.rejected, (state) => {
+      .addCase(restoreSession.rejected, (state, action) => {
         state.user = null;
         state.token = null;
+        state.refreshToken = null;
+        state.id = null;
         state.loading = false;
-        state.error = null;
+        state.error = (action.payload as string) || null;
       })
       // Refresh Token
       .addCase(refreshToken.pending, (state) => {
@@ -284,12 +336,6 @@ const authSlice = createSlice({
         state.refreshToken = newRefreshToken;
         state.error = null;
 
-        try {
-          localStorage.setItem('token', newToken);
-          localStorage.setItem('refreshToken', newRefreshToken);
-        } catch (error) {
-          console.error('❌ Error al guardar tokens en localStorage:', error);
-        }
       })
       .addCase(refreshToken.rejected, (state, action) => {
         state.loading = false;
@@ -297,7 +343,7 @@ const authSlice = createSlice({
           (action.payload as string) || 'Error al refrescar el token';
         state.token = null;
         state.refreshToken = null;
-        localStorage.clean();
+        SecureStorage.clear();
       });
   },
 });

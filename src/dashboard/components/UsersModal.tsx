@@ -1,34 +1,43 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { UserService } from '../services/userService';
 import type { DashboardUser } from '../types/user';
 import toast from 'react-hot-toast';
 import { confirmToast } from '../utils/confirmToast';
 import type { UsersModalProps } from '../types/modals';
+import { ModalFrame, ModalFooter } from './ModalFrame';
+
+type FormMode = 'closed' | 'create' | 'edit';
+
+const emptyForm = {
+  id: '',
+  name: '',
+  email: '',
+  role: 'Customer',
+  password: '',
+};
+
+const primaryButtonClass =
+  'inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/15';
+
+const ghostButtonClass =
+  'inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/10';
+
+const destructiveButtonClass =
+  'inline-flex items-center justify-center rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500/20';
+
+const subtleTagClass =
+  'inline-flex items-center justify-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600';
 
 export default function UsersModal({ onClose }: UsersModalProps) {
   const [users, setUsers] = useState<DashboardUser[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState<{
-    id?: string;
-    name: string;
-    email: string;
-    role: string;
-    password?: string;
-  }>({ name: '', email: '', role: 'Customer', password: '' });
+  const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState<FormMode>('closed');
+  const [form, setForm] = useState({ ...emptyForm });
   const [page, setPage] = useState(1);
   const pageSize = 7;
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await UserService.getUsers();
-        setUsers(data);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    void refresh();
   }, []);
 
   const refresh = async () => {
@@ -41,360 +50,300 @@ export default function UsersModal({ onClose }: UsersModalProps) {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const totalUsers = users.length;
+  const totalPages = Math.max(1, Math.ceil(totalUsers / pageSize));
+
+  const visibleUsers = useMemo(
+    () => users.slice((page - 1) * pageSize, page * pageSize),
+    [users, page]
+  );
+
+  const openCreate = () => {
+    setForm({ ...emptyForm });
+    setMode('create');
+  };
+
+  const openEdit = (user: DashboardUser) => {
+    setForm({
+      id: user.id ?? '',
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      password: '',
+    });
+    setMode('edit');
+  };
+
+  const closeForm = () => {
+    setMode('closed');
+    setForm({ ...emptyForm });
+  };
+
+  const handleDelete = async (id?: string) => {
+    if (!id) return;
     const okConfirm = await confirmToast(
-      '¿Eliminar este usuario? Esta acción no se puede deshacer.'
+      'Eliminar este usuario? Esta accion no se puede deshacer.'
     );
     if (!okConfirm) return;
     try {
       const ok = await UserService.deleteUser(id);
       if (ok) {
         toast.success('Usuario eliminado');
-        refresh();
+        await refresh();
       } else {
-        toast.error('No se pudo eliminar');
+        toast.error('No se pudo eliminar el usuario');
       }
-    } catch (e: any) {
-      toast.error(`Error al eliminar: ${e?.message || 'desconocido'}`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Error desconocido';
+      toast.error(`Error al eliminar: ${message}`);
     }
-  };
-
-  const handleEdit = (u: DashboardUser) => {
-    setForm({ id: u.id, name: u.name, email: u.email, role: u.role });
-    setCreating(true);
-    const modal = document.getElementById('edit-user-modal');
-    if (modal) modal.classList.remove('hidden');
-  };
-
-  const handleCreate = () => {
-    setForm({ name: '', email: '', role: 'Customer', password: '' });
-    setCreating(true);
-    const modal = document.getElementById('create-user-modal');
-    if (modal) modal.classList.remove('hidden');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      let ok = false;
-      if (form.id) {
-        ok = await UserService.updateUser(form.id, {
-          name: form.name,
-          email: form.email,
-          role: form.role,
-        });
-      } else {
-        ok = await UserService.createUser({
+      if (mode === 'create') {
+        const ok = await UserService.createUser({
           name: form.name,
           email: form.email,
           role: form.role,
           password: form.password,
         });
+        if (ok) {
+          toast.success('Usuario creado');
+          closeForm();
+          await refresh();
+        } else {
+          toast.error('No se pudo crear el usuario');
+        }
+      } else if (mode === 'edit' && form.id) {
+        const ok = await UserService.updateUser(form.id, {
+          name: form.name,
+          email: form.email,
+          role: form.role,
+        });
+        if (ok) {
+          toast.success('Usuario actualizado');
+          closeForm();
+          await refresh();
+        } else {
+          toast.error('No se pudo actualizar el usuario');
+        }
       }
-      if (ok) {
-        toast.success(form.id ? 'Usuario actualizado' : 'Usuario creado');
-        setCreating(false);
-        const editM = document.getElementById('edit-user-modal');
-        if (editM) editM.classList.add('hidden');
-        const createM = document.getElementById('create-user-modal');
-        if (createM) createM.classList.add('hidden');
-        await refresh();
-      } else {
-        toast.error('Operación fallida');
-      }
-    } catch (e: any) {
-      toast.error(`Error al guardar: ${e?.message || 'desconocido'}`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Error desconocido';
+      toast.error(`Error al guardar: ${message}`);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl w-full max-w-3xl border border-white/20">
-        <div className="p-6 border-b border-white/10 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-white">Usuarios</h2>
-          <button
-            onClick={onClose}
-            className="text-white/70 hover:text-white text-2xl"
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <div />
+    <>
+      <ModalFrame
+        title="Usuarios"
+        description="Administra los perfiles con acceso al panel y sus permisos."
+        onClose={onClose}
+        actions={
+          <>
+            <span className="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 sm:inline-flex">
+              {totalUsers} usuario{totalUsers === 1 ? '' : 's'}
+            </span>
             <button
-              onClick={handleCreate}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-sky-400 to-blue-600 text-white font-semibold shadow hover:brightness-110"
+              type="button"
+              onClick={openCreate}
+              className={primaryButtonClass}
             >
-              Nuevo Usuario
+              Nuevo usuario
             </button>
+          </>
+        }
+      >
+        {loading ? (
+          <div className="flex min-h-[220px] items-center justify-center text-sm text-slate-500">
+            Cargando usuarios...
           </div>
-          {loading ? (
-            <div className="text-center text-gray-300">Cargando...</div>
-          ) : users.length === 0 ? (
-            <div className="text-center text-gray-300">No hay usuarios</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-white/10 text-white">
-                <thead className="bg-white/5">
+        ) : totalUsers === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 py-12 text-center text-sm text-slate-500">
+            No hay usuarios registrados por ahora. Crea el primero para
+            comenzar.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="overflow-hidden rounded-2xl border border-slate-200">
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-50 text-slate-500">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
+                    <th className="px-4 py-3 text-left font-semibold">
                       Nombre
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
-                      Email
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
-                      Rol
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
+                    <th className="px-4 py-3 text-left font-semibold">Email</th>
+                    <th className="px-4 py-3 text-left font-semibold">Rol</th>
+                    <th className="px-4 py-3 text-left font-semibold">
                       Acciones
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/10">
-                  {users
-                    .slice((page - 1) * pageSize, page * pageSize)
-                    .map((u, idx) => (
-                      <tr key={u.id || idx} className="hover:bg-white/5">
-                        <td className="px-4 py-3">{u.name}</td>
-                        <td className="px-4 py-3">{u.email}</td>
-                        <td className="px-4 py-3">{u.role}</td>
-                        <td className="px-4 py-3 space-x-2">
+                <tbody className="divide-y divide-slate-100 bg-white text-slate-700">
+                  {visibleUsers.map((user) => (
+                    <tr
+                      key={user.id ?? user.email}
+                      className="transition hover:bg-slate-50"
+                    >
+                      <td className="px-4 py-3 font-medium text-slate-900">
+                        {user.name}
+                      </td>
+                      <td className="px-4 py-3">{user.email}</td>
+                      <td className="px-4 py-3">
+                        <span className={subtleTagClass}>{user.role}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
                           <button
-                            onClick={() => handleEdit(u)}
-                            className="px-3 py-1 rounded-lg bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 text-slate-900 font-semibold shadow hover:brightness-110"
+                            type="button"
+                            onClick={() => openEdit(user)}
+                            className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/15"
                           >
                             Editar
                           </button>
                           <button
-                            onClick={() => handleDelete(u.id)}
-                            className="px-3 py-1 rounded-lg bg-gradient-to-r from-rose-500 to-red-600 text-white font-semibold shadow hover:brightness-110"
+                            type="button"
+                            onClick={() => handleDelete(user.id)}
+                            className={destructiveButtonClass}
                           >
                             Eliminar
                           </button>
-                        </td>
-                      </tr>
-                    ))}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
-              <div className="flex items-center justify-between mt-4 text-white/80">
-                <span className="text-sm">
-                  Página {page} de{' '}
-                  {Math.max(1, Math.ceil(users.length / pageSize))}
-                </span>
-                <div className="space-x-2">
-                  <button
-                    disabled={page === 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className="px-3 py-1 rounded-lg bg-white/10 border border-white/20 disabled:opacity-40"
-                  >
-                    Anterior
-                  </button>
-                  <button
-                    disabled={page >= Math.ceil(users.length / pageSize)}
-                    onClick={() => setPage((p) => p + 1)}
-                    className="px-3 py-1 rounded-lg bg-white/10 border border-white/20 disabled:opacity-40"
-                  >
-                    Siguiente
-                  </button>
-                </div>
+            </div>
+
+            <div className="flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+              <span>
+                Pagina {page} de {totalPages}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={page === 1}
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  className={`${ghostButtonClass} disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  Anterior
+                </button>
+                <button
+                  type="button"
+                  disabled={page === totalPages}
+                  onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  className={`${ghostButtonClass} disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  Siguiente
+                </button>
               </div>
             </div>
-          )}
-        </div>
-        {/* Modales independientes para crear y editar */}
-        <div
-          id="create-user-modal"
-          className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 ${creating && !form.id ? '' : 'hidden'}`}
+          </div>
+        )}
+      </ModalFrame>
+
+      {mode !== 'closed' && (
+        <ModalFrame
+          title={mode === 'create' ? 'Nuevo usuario' : 'Editar usuario'}
+          description={
+            mode === 'create'
+              ? 'Completa los datos del colaborador. Enviarás las credenciales manualmente.'
+              : 'Actualiza la informacion visible en el panel.'
+          }
+          onClose={closeForm}
+          width="md"
         >
-          <div className="bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl w-full max-w-2xl border border-white/20">
-            <div className="p-6 border-b border-white/10 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-white">Crear Usuario</h2>
-              <button
-                onClick={() => {
-                  const m = document.getElementById('create-user-modal');
-                  m && m.classList.add('hidden');
-                  setCreating(false);
-                }}
-                className="text-white/70 hover:text-white text-2xl"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6">
-              <form
-                onSubmit={handleSubmit}
-                className="grid grid-cols-1 md:grid-cols-2 gap-4 text-white"
-              >
-                <div>
-                  <label className="block text-sm mb-1">Nombre</label>
-                  <input
-                    value={form.name}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, name: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, email: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1">Rol</label>
-                  <select
-                    value={form.role}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, role: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
-                  >
-                    <option value="Customer">Customer</option>
-                    <option value="Admin">Admin</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm mb-1">Contraseña</label>
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Nombre
+                </label>
+                <input
+                  value={form.name}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, email: e.target.value }))
+                  }
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Rol
+                </label>
+                <select
+                  value={form.role}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, role: e.target.value }))
+                  }
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                >
+                  <option value="Customer">Customer</option>
+                  <option value="Admin">Admin</option>
+                </select>
+              </div>
+              {mode === 'create' ? (
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Contraseña temporal
+                  </label>
                   <input
                     type="password"
                     value={form.password}
                     onChange={(e) =>
-                      setForm((f) => ({ ...f, password: e.target.value }))
+                      setForm((prev) => ({ ...prev, password: e.target.value }))
                     }
-                    className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                     required
                   />
                 </div>
-                <div className="md:col-span-2 flex justify-end gap-2 mt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const m = document.getElementById('create-user-modal');
-                      m && m.classList.add('hidden');
-                      setCreating(false);
-                    }}
-                    className="px-4 py-2 rounded-xl bg-gray-600 text-white hover:bg-gray-700"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-semibold shadow hover:brightness-110"
-                  >
-                    Crear
-                  </button>
-                </div>
-              </form>
+              ) : null}
             </div>
-          </div>
-        </div>
 
-        <div
-          id="edit-user-modal"
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden"
-        >
-          <div className="bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl w-full max-w-2xl border border-white/20">
-            <div className="p-6 border-b border-white/10 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-white">Editar Usuario</h2>
-              <button
-                onClick={() => {
-                  const m = document.getElementById('edit-user-modal');
-                  m && m.classList.add('hidden');
-                  setCreating(false);
-                  setForm({
-                    name: '',
-                    email: '',
-                    role: 'Customer',
-                    password: '',
-                  });
-                }}
-                className="text-white/70 hover:text-white text-2xl"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6">
-              <form
-                onSubmit={handleSubmit}
-                className="grid grid-cols-1 md:grid-cols-2 gap-4 text-white"
-              >
-                <div>
-                  <label className="block text-sm mb-1">Nombre</label>
-                  <input
-                    value={form.name}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, name: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, email: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1">Rol</label>
-                  <select
-                    value={form.role}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, role: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
-                  >
-                    <option value="Customer">Customer</option>
-                    <option value="Admin">Admin</option>
-                  </select>
-                </div>
-                <div className="md:col-span-2 flex justify-end gap-2 mt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const m = document.getElementById('edit-user-modal');
-                      m && m.classList.add('hidden');
-                      setCreating(false);
-                      setForm({
-                        name: '',
-                        email: '',
-                        role: 'Customer',
-                        password: '',
-                      });
-                    }}
-                    className="px-4 py-2 rounded-xl bg-gray-600 text-white hover:bg-gray-700"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 text-slate-900 font-semibold shadow hover:brightness-110"
-                  >
-                    Actualizar
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+            <ModalFooter>
+              <span>
+                {mode === 'create'
+                  ? 'Se enviará un correo de bienvenida manualmente.'
+                  : 'Los cambios se reflejarán inmediatamente.'}
+              </span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={closeForm}
+                  className={ghostButtonClass}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className={primaryButtonClass}>
+                  {mode === 'create' ? 'Crear usuario' : 'Guardar cambios'}
+                </button>
+              </div>
+            </ModalFooter>
+          </form>
+        </ModalFrame>
+      )}
+    </>
   );
 }
+

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../global';
 import Login from './components/Login';
 import UsersModal from './components/UsersModal';
@@ -9,11 +9,13 @@ import SuppliersModal from './components/SuppliersModal';
 import InventoryModal from './components/InventoryModal';
 import DashboardModal from './components/DashboardModal';
 import { logout, clearError } from '../global/authSlice';
+import { isTokenExpired } from '../utils/token';
 import toast, { Toaster } from 'react-hot-toast';
 
 export default function DashboardApp() {
   const dispatch = useAppDispatch();
   const { token, user, error, success } = useAppSelector((state) => state.auth);
+
   const [showUsers, setShowUsers] = useState(false);
   const [showProducts, setShowProducts] = useState(false);
   const [showOrders, setShowOrders] = useState(false);
@@ -31,300 +33,330 @@ export default function DashboardApp() {
       toast.success(success);
       dispatch(clearError());
     }
-  }, [error, success, dispatch]);
+  }, [dispatch, error, success]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    const checkExpiration = () => {
+      if (token && isTokenExpired(token, 30)) {
+        dispatch(
+          logout('Tu sesion ha expirado. Por favor inicia sesion nuevamente.')
+        );
+      }
+    };
+
+    checkExpiration();
+    const intervalId = window.setInterval(checkExpiration, 60_000);
+    return () => window.clearInterval(intervalId);
+  }, [dispatch, token]);
 
   const handleLogout = () => {
     dispatch(logout());
-    toast.success('¡Sesión cerrada exitosamente!');
+    toast.success('Sesion cerrada correctamente.');
   };
+
+  const sessionTimestamp = useMemo(
+    () =>
+      new Date().toLocaleString('es-ES', {
+        dateStyle: 'long',
+        timeStyle: 'short',
+      }),
+    []
+  );
+
+  const userInitials = useMemo(() => {
+    if (!user?.name) return 'AD';
+    const [first = '', second = ''] = user.name.trim().split(' ');
+    const initials = `${first.charAt(0)}${second.charAt(0)}`.replace(
+      /\s/g,
+      ''
+    );
+    if (initials.length >= 2) return initials.toUpperCase();
+    return first.charAt(0).toUpperCase() || 'AD';
+  }, [user?.name]);
+
+  const managementActions = [
+    {
+      key: 'users',
+      title: 'Usuarios',
+      description: 'Organiza roles y permisos del equipo.',
+      badge: 'US',
+      badgeClass: 'bg-slate-900 text-white',
+      onClick: () => setShowUsers(true),
+    },
+    {
+      key: 'products',
+      title: 'Productos',
+      description: 'Actualiza catalogos, precios y disponibilidad.',
+      badge: 'PR',
+      badgeClass: 'bg-blue-900 text-white',
+      onClick: () => setShowProducts(true),
+    },
+    {
+      key: 'orders',
+      title: 'Pedidos',
+      description: 'Supervisa pedidos y tiempos de entrega.',
+      badge: 'PD',
+      badgeClass: 'bg-emerald-900 text-white',
+      onClick: () => setShowOrders(true),
+    },
+    {
+      key: 'inventory',
+      title: 'Inventario',
+      description: 'Controla existencias y alertas de stock.',
+      badge: 'IN',
+      badgeClass: 'bg-amber-700 text-white',
+      onClick: () => setShowInventory(true),
+    },
+    {
+      key: 'branches',
+      title: 'Sucursales',
+      description: 'Administra ubicaciones y datos de contacto.',
+      badge: 'SC',
+      badgeClass: 'bg-slate-800 text-white',
+      onClick: () => setShowBranches(true),
+    },
+    {
+      key: 'suppliers',
+      title: 'Proveedores',
+      description: 'Gestiona acuerdos y cumplimiento.',
+      badge: 'PV',
+      badgeClass: 'bg-indigo-900 text-white',
+      onClick: () => setShowSuppliers(true),
+    },
+    {
+      key: 'dashboard',
+      title: 'Dashboard',
+      description: 'Consulta indicadores globales y reportes.',
+      badge: 'DB',
+      badgeClass: 'bg-slate-700 text-white',
+      onClick: () => setShowDashboard(true),
+    },
+  ];
+
+  const agendaItems = [
+    {
+      key: 'orders',
+      title: 'Revisar pedidos pendientes',
+      description: 'Confirma estados y tiempos antes del corte diario.',
+      action: () => setShowOrders(true),
+    },
+    {
+      key: 'inventory',
+      title: 'Auditar inventario',
+      description: 'Valida ajustes y proyecciones de demanda.',
+      action: () => setShowInventory(true),
+    }
+  ];
+
+  const insightNotes = [
+    'Comparte indicadores clave del dashboard en la reunion matutina.',
+    'Establece alertas de stock minimo para los productos criticos.',
+    'Registra comentarios de clientes en el modulo de pedidos.',
+  ];
+
+  const sessionMetrics = [
+    {
+      label: 'Rol del perfil',
+      value: user?.role ?? 'No asignado',
+      helper: 'Control de acceso vigente',
+    },
+    {
+      label: 'Modulos activos',
+      value: managementActions.length.toString(),
+      helper: 'Usuarios, productos, pedidos y mas',
+    },
+    {
+      label: 'Sesion iniciada',
+      value: sessionTimestamp,
+      helper: 'Horario local',
+    },
+  ];
 
   if (!token || !user) return <Login />;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Toaster para notificaciones */}
+    <div className="min-h-screen bg-slate-100 text-slate-900">
       <Toaster
         position="top-right"
         toastOptions={{
-          duration: 3000,
+          duration: 3500,
           style: {
-            background: '#363636',
-            color: '#fff',
+            background: '#ffffff',
+            color: '#0f172a',
             borderRadius: '12px',
-            padding: '16px',
+            border: '1px solid rgba(15, 23, 42, 0.08)',
+            boxShadow: '0 18px 40px rgba(15, 23, 42, 0.08)',
+            padding: '12px 16px',
             fontSize: '14px',
           },
           success: {
             iconTheme: {
-              primary: '#10b981',
-              secondary: '#fff',
+              primary: '#0f172a',
+              secondary: '#ffffff',
             },
           },
           error: {
             iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+              primary: '#dc2626',
+              secondary: '#ffffff',
             },
           },
         }}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl p-8 border border-white/20">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-4">
-              <div className="h-16 w-16 bg-gradient-to-r from-blue-400 to-blue-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <svg
-                  className="h-8 w-8 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
+      <div className="mx-auto flex max-w-7xl flex-col gap-12 px-6 py-10">
+        <header className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
+              Administracion
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+              Panel de control
+            </h1>
+            <p className="mt-3 max-w-xl text-sm text-slate-600">
+              Gestiona operaciones clave desde un entorno limpio, ordenado y sin distracciones.
+            </p>
+          </div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch sm:gap-6">
+            <div className="flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-2 shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-lg font-semibold text-white">
+                {userInitials}
               </div>
-              <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-                  Panel de Administración
-                </h1>
-                <p className="text-gray-300 mt-2">
-                  Control total de tu sistema empresarial
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Sesion activa
                 </p>
+                <p className="truncate text-lg font-semibold text-slate-900">
+                  {user?.name}
+                </p>
+                <p className="truncate text-sm text-slate-500">{user?.email}</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-gray-400 text-sm">Administrador</p>
-                <p className="font-semibold text-white">{user.name}</p>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="bg-gradient-to-r from-red-500 via-pink-500 to-red-600 text-white px-6 py-3 rounded-xl font-medium hover:from-red-600 hover:via-pink-600 hover:to-red-700 transition-all duration-200 shadow-2xl hover:shadow-red-500/25 transform hover:-translate-y-0.5"
-              >
-                Cerrar Sesión
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/15"
+            >
+              Cerrar sesion
+            </button>
           </div>
+        </header>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="group bg-gradient-to-br from-blue-500/20 to-blue-600/20 p-8 rounded-2xl border border-blue-500/30 hover:border-blue-400/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:bg-blue-500/30">
-              <div className="h-16 w-16 bg-gradient-to-r from-blue-400 to-blue-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <svg
-                  className="h-8 w-8 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-blue-300 mb-3">
-                Usuarios
-              </h3>
-              <p className="text-blue-200 mb-4">
-                Gestiona usuarios del sistema
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {sessionMetrics.map((metric) => (
+            <div
+              key={metric.label}
+              className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+            >
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {metric.label}
               </p>
-              <button
-                onClick={() => setShowUsers(true)}
-                className="text-blue-300 hover:text-blue-200 font-medium transition duration-200 hover:underline"
-              >
-                Administrar →
-              </button>
+              <p className="mt-2 text-xl font-semibold text-slate-900">
+                {metric.value}
+              </p>
+              <p className="mt-2 text-sm text-slate-600">{metric.helper}</p>
             </div>
+          ))}
+        </section>
 
-            <div className="group bg-gradient-to-br from-green-500/20 to-green-600/20 p-8 rounded-2xl border border-green-500/30 hover:border-green-400/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:bg-green-500/30">
-              <div className="h-16 w-16 bg-gradient-to-r from-green-400 to-green-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <svg
-                  className="h-8 w-8 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-green-300 mb-3">
-                Productos
-              </h3>
-              <p className="text-green-200 mb-4">Administra el catálogo</p>
+        <section className="space-y-5">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Gestion central</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Accede a cada modulo sin salir del panel principal.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {managementActions.map((item) => (
               <button
-                onClick={() => setShowProducts(true)}
-                className="text-green-300 hover:text-green-200 font-medium transition duration-200 hover:underline"
+                key={item.key}
+                type="button"
+                onClick={item.onClick}
+                className="group flex h-full flex-col items-start gap-4 rounded-xl border border-slate-200 bg-white px-5 py-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-900/10"
               >
-                Gestionar →
+                <span
+                  className={`inline-flex h-9 min-w-[2.25rem] items-center justify-center rounded-lg px-3 text-xs font-semibold tracking-wide ${item.badgeClass}`}
+                >
+                  {item.badge}
+                </span>
+                <div>
+                  <p className="text-base font-semibold text-slate-900">
+                    {item.title}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {item.description}
+                  </p>
+                </div>
+                <span className="text-xs font-semibold text-slate-500 transition group-hover:text-slate-700">
+                  Abrir modulo{' ->'}
+                </span>
               </button>
-            </div>
+            ))}
+          </div>
+        </section>
 
-            <div className="group bg-gradient-to-br from-purple-500/20 to-purple-600/20 p-8 rounded-2xl border border-purple-500/30 hover:border-purple-400/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:bg-purple-500/30">
-              <div className="h-16 w-16 bg-gradient-to-r from-purple-400 to-purple-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <svg
-                  className="h-8 w-8 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="text-base font-semibold text-slate-900">Agenda operativa</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              Prioridades sugeridas para mantener el flujo diario.
+            </p>
+            <div className="mt-4 space-y-2">
+              {agendaItems.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={item.action}
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-3 text-left transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-purple-300 mb-3">
-                Inventario
-              </h3>
-              <p className="text-purple-200 mb-1">Control de stock</p>
-              <button
-                onClick={() => setShowInventory(true)}
-                className="text-purple-300 hover:text-purple-200 font-medium transition duration-200 hover:underline"
-              >
-                Inventario →
-              </button>
-            </div>
-
-            <div className="group bg-gradient-to-br from-blue-500/20 to-blue-600/20 p-8 rounded-2xl border border-blue-500/30 hover:border-blue-400/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:bg-blue-500/30">
-              <div className="h-16 w-16 bg-gradient-to-r from-blue-400 to-blue-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <svg
-                  className="h-8 w-8 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-blue-300 mb-3">
-                Pedidos
-              </h3>
-              <p className="text-blue-200 mb-1">Control de pedidos</p>
-              <button
-                onClick={() => setShowOrders(true)}
-                className="text-blue-300 hover:text-blue-200 font-medium transition duration-200 hover:underline"
-              >
-                Pedidos →
-              </button>
-            </div>
-
-            <div className="group bg-gradient-to-br from-orange-500/20 to-orange-600/20 p-8 rounded-2xl border border-orange-500/30 hover:border-orange-400/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:bg-orange-500/30">
-              <div className="h-16 w-16 bg-gradient-to-r from-orange-400 to-orange-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <svg
-                  className="h-8 w-8 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-orange-300 mb-3">
-                Sucursales
-              </h3>
-              <p className="text-orange-200 mb-1">Gestiona las sucursales</p>
-              <button
-                onClick={() => setShowBranches(true)}
-                className="text-orange-300 hover:text-orange-200 font-medium transition duration-200 hover:underline"
-              >
-                Sucursales →
-              </button>
-            </div>
-
-            <div className="group bg-gradient-to-br from-orange-500/20 to-orange-600/20 p-8 rounded-2xl border border-orange-500/30 hover:border-orange-400/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:bg-orange-500/30">
-              <div className="h-16 w-16 bg-gradient-to-r from-orange-400 to-orange-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <svg
-                  className="h-8 w-8 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-orange-300 mb-3">
-                Proveedores
-              </h3>
-              <p className="text-orange-200 mb-1">Gestiona los proveedores</p>
-              <button
-                onClick={() => setShowSuppliers(true)}
-                className="text-red-300 hover:text-red-200 font-medium transition duration-200 hover:underline"
-              >
-                Proveedores →
-              </button>
-            </div>
-
-            <div className="group bg-gradient-to-br from-orange-500/20 to-orange-600/20 p-8 rounded-2xl border border-orange-500/30 hover:border-orange-400/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:bg-orange-500/30">
-              <div className="h-16 w-16 bg-gradient-to-r from-orange-400 to-orange-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <svg
-                  className="h-8 w-8 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-orange-300 mb-3">
-                Dashboard
-              </h3>
-              <p className="text-orange-200 mb-1">Gestiona el dashboard</p>
-              <button
-                onClick={() => setShowDashboard(true)}
-                className="text-orange-300 hover:text-orange-200 font-medium transition duration-200 hover:underline"
-              >
-                Dashboard →
-              </button>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {item.title}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-600">
+                      {item.description}
+                    </p>
+                  </div>
+                  <span className="text-sm text-slate-400">Abrir</span>
+                </button>
+              ))}
             </div>
           </div>
-        </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="text-base font-semibold text-slate-900">Notas rapidas</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              Mantente alineado con los objetivos del equipo.
+            </p>
+            <ul className="mt-4 space-y-3">
+              {insightNotes.map((note, index) => (
+                <li key={index} className="flex items-start gap-3">
+                  <span className="mt-1 h-2 w-2 rounded-full bg-slate-400" />
+                  <p className="text-sm text-slate-600">{note}</p>
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={() => setShowDashboard(true)}
+              className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-900 transition hover:text-slate-700 focus:outline-none"
+            >
+              Revisar dashboard general
+              <span aria-hidden="true">{'->'}</span>
+            </button>
+          </div>
+        </section>
       </div>
+
       {showUsers && <UsersModal onClose={() => setShowUsers(false)} />}
       {showProducts && <ProductsModal onClose={() => setShowProducts(false)} />}
       {showOrders && <OrdersModal onClose={() => setShowOrders(false)} />}
       {showBranches && <BranchesModal onClose={() => setShowBranches(false)} />}
-      {showSuppliers && (
-        <SuppliersModal onClose={() => setShowSuppliers(false)} />
-      )}
-      {showInventory && (
-        <InventoryModal onClose={() => setShowInventory(false)} />
-      )}
-      {showDashboard && (
-        <DashboardModal onClose={() => setShowDashboard(false)} />
-      )}
+      {showSuppliers && <SuppliersModal onClose={() => setShowSuppliers(false)} />}
+      {showInventory && <InventoryModal onClose={() => setShowInventory(false)} />}
+      {showDashboard && <DashboardModal onClose={() => setShowDashboard(false)} />}
     </div>
   );
 }

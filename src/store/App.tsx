@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../global';
 import Login from './components/LoginRegister';
 import { logout, clearError } from '../global/authSlice';
+import { isTokenExpired } from '../utils/token';
 import toast, { Toaster } from 'react-hot-toast';
 import { useAIChat } from './hooks/useAIChat';
 import { ProductService } from './services/productService';
@@ -85,6 +86,22 @@ export default function StoreApp() {
       dispatch(clearError());
     }
   }, [error, dispatch]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    const monitorExpiration = () => {
+      if (token && isTokenExpired(token, 30)) {
+        dispatch(
+          logout('Tu sesion ha expirado. Por favor inicia sesion nuevamente.')
+        );
+      }
+    };
+
+    monitorExpiration();
+    const intervalId = window.setInterval(monitorExpiration, 60000);
+    return () => window.clearInterval(intervalId);
+  }, [dispatch, token]);
 
   // Cargar carrito desde localStorage
   useEffect(() => {

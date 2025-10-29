@@ -1,386 +1,518 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { InventoryService } from '../services/inventoryService';
-import type { InventoryItem } from '../types/inventory';
+import type {
+  InventoryItem,
+  RawMaterialCreate,
+} from '../types/inventory';
 import type { InventoryModalProps } from '../types/modals';
+import { ModalFrame, ModalFooter } from './ModalFrame';
+
+type FormMode = 'closed' | 'create' | 'movement';
+
+const primaryButtonClass =
+  'inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/15';
+
+const secondaryButtonClass =
+  'inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/10';
+
+const pillClass =
+  'inline-flex items-center justify-center rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide';
+
+const toLocalInputValue = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (num: number) => String(num).padStart(2, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const fromLocalInputValue = (value: string) => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return new Date().toISOString();
+  }
+  return parsed.toISOString();
+};
 
 export default function InventoryModal({ onClose }: InventoryModalProps) {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState<FormMode>('closed');
   const [page, setPage] = useState(1);
-  const pageSize = 5;
+  const pageSize = 6;
 
-  const [_creating, setCreating] = useState(false);
-  const [editing, setEditing] = useState<InventoryItem | null>(null);
-  const [rawForm, setRawForm] = useState({ name: '', unit: '', minStock: 0 });
-  const [moveForm, setMoveForm] = useState<{
-    rawMaterialId: string;
-    quantity: number;
-    movementType: 'In' | 'Out' | 'Waste';
-    date: string;
-  }>({
+  const [rawForm, setRawForm] = useState<RawMaterialCreate>({
+    name: '',
+    unit: '',
+    minStock: 0,
+  });
+
+  const [movementForm, setMovementForm] = useState({
     rawMaterialId: '',
     quantity: 0,
-    movementType: 'In',
+    movementType: 'In' as 'In' | 'Out' | 'Waste',
     date: new Date().toISOString(),
   });
+
+  useEffect(() => {
+    void refresh();
+  }, []);
 
   const refresh = async () => {
     setLoading(true);
     try {
       const data = await InventoryService.getAll();
       setItems(data);
-    } catch (e: any) {
-      toast.error(`Error cargando inventario: ${e?.message || 'desconocido'}`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Error desconocido';
+      toast.error(`Error cargando inventario: ${message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    refresh();
-  }, []);
+  const totalItems = items.length;
+  const lowStockCount = useMemo(
+    () =>
+      items.filter(
+        (item) => item.currentQuantity <= (item.rawMaterial?.minStock ?? 0)
+      ).length,
+    [items]
+  );
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
-  const startCreate = () => {
+  const visibleItems = useMemo(
+    () => items.slice((page - 1) * pageSize, page * pageSize),
+    [items, page, pageSize]
+  );
+
+  const openCreateRaw = () => {
     setRawForm({ name: '', unit: '', minStock: 0 });
-    setCreating(true);
-    setEditing(null);
-    const m = document.getElementById('create-inv-modal');
-    m && m.classList.remove('hidden');
+    setMode('create');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const openMovement = (rawMaterialId?: string) => {
+    setMovementForm({
+      rawMaterialId: rawMaterialId || '',
+      quantity: 0,
+      movementType: 'In',
+      date: new Date().toISOString(),
+    });
+    setMode('movement');
+  };
+
+  const closeForm = () => {
+    setMode('closed');
+  };
+
+  const handleCreateRaw = async (event: React.FormEvent) => {
+    event.preventDefault();
     try {
-      let ok = false;
-      if (editing) {
-        ok = false;
-        toast.error(
-          'La edición de inventario no está soportada; usa Movimientos.'
-        );
-      } else ok = await InventoryService.createRawMaterial(rawForm);
+      const ok = await InventoryService.createRawMaterial(rawForm);
       if (ok) {
         toast.success('Materia prima creada');
-        const me = document.getElementById('edit-inv-modal');
-        me && me.classList.add('hidden');
-        const mc = document.getElementById('create-inv-modal');
-        mc && mc.classList.add('hidden');
-        setCreating(false);
-        setEditing(null);
-        refresh();
-      } else toast.error('Operación fallida');
-    } catch (e: any) {
-      toast.error(`Error al guardar: ${e?.message || 'desconocido'}`);
+        closeForm();
+        await refresh();
+      } else {
+        toast.error('No se pudo crear la materia prima');
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Error desconocido';
+      toast.error(`Error al guardar: ${message}`);
     }
   };
 
-  const submitMovement = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRegisterMovement = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!movementForm.rawMaterialId) {
+      toast.error('Selecciona una materia prima');
+      return;
+    }
     try {
       const ok = await InventoryService.registerMovement(
-        moveForm.rawMaterialId,
+        movementForm.rawMaterialId,
         {
-          quantity: moveForm.quantity,
-          movementType: moveForm.movementType,
-          date: moveForm.date,
+          quantity: movementForm.quantity,
+          movementType: movementForm.movementType,
+          date: movementForm.date,
         }
       );
       if (ok) {
         toast.success('Movimiento registrado');
-        const mm = document.getElementById('movement-modal');
-        mm && mm.classList.add('hidden');
-        refresh();
-      } else toast.error('No se pudo registrar el movimiento');
-    } catch (e: any) {
-      toast.error(`Error al registrar: ${e?.message || 'desconocido'}`);
+        closeForm();
+        await refresh();
+      } else {
+        toast.error('No se pudo registrar el movimiento');
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Error desconocido';
+      toast.error(`Error al registrar: ${message}`);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl w-full max-w-5xl border border-white/20">
-        <div className="p-6 border-b border-white/10 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-white">Inventario</h2>
+    <>
+      <ModalFrame
+        title="Inventario"
+        description="Supervisa las materias primas disponibles y registra movimientos."
+        onClose={onClose}
+        width="xl"
+        actions={
           <div className="flex items-center gap-3">
+            <span className="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 sm:inline-flex">
+              {lowStockCount} con stock bajo
+            </span>
             <button
-              onClick={startCreate}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-sky-400 to-blue-600 text-white font-semibold shadow hover:brightness-110"
+              type="button"
+              onClick={() => openMovement()}
+              className={secondaryButtonClass}
             >
-              Nueva Materia Prima
+              Registrar movimiento
             </button>
             <button
-              onClick={onClose}
-              className="text-white/70 hover:text-white text-2xl"
+              type="button"
+              onClick={openCreateRaw}
+              className={primaryButtonClass}
             >
-              ×
+              Nueva materia prima
             </button>
           </div>
-        </div>
-        <div className="p-6">
-          {loading ? (
-            <div className="text-center text-gray-300">Cargando...</div>
-          ) : items.length === 0 ? (
-            <div className="text-center text-gray-300">No hay registros</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-white/10 text-white">
-                <thead className="bg-white/5">
+        }
+      >
+        {loading ? (
+          <div className="flex min-h-[240px] items-center justify-center text-sm text-slate-500">
+            Cargando inventario...
+          </div>
+        ) : totalItems === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 py-12 text-center text-sm text-slate-500">
+            Aun no hay materias primas registradas.
+          </div>
+        ) : (
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Materias primas
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-slate-900">
+                  {totalItems}
+                </p>
+                <p className="text-sm text-slate-500">
+                  Total de insumos registrados
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Stock bajo
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-amber-600">
+                  {lowStockCount}
+                </p>
+                <p className="text-sm text-slate-500">
+                  Materias primas por debajo del minimo
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Disponibilidad media
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-slate-900">
+                  {(
+                    items.reduce((sum, item) => sum + item.currentQuantity, 0) /
+                    Math.max(1, items.length)
+                  ).toFixed(0)}
+                </p>
+                <p className="text-sm text-slate-500">
+                  Promedio de unidades por materia prima
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border border-slate-200">
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-50 text-slate-500">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
-                      Materia Prima
+                    <th className="px-4 py-3 text-left font-semibold">
+                      Materia prima
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
-                      Unidad
+                    <th className="px-4 py-3 text-left font-semibold">Unidad</th>
+                    <th className="px-4 py-3 text-left font-semibold">
+                      Stock minimo
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
-                      Stock Mín.
+                    <th className="px-4 py-3 text-left font-semibold">
+                      Cantidad actual
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
-                      Cantidad Actual
+                    <th className="px-4 py-3 text-left font-semibold">
+                      Estado
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold">
+                      Acciones
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/10">
-                  {items
-                    .slice((page - 1) * pageSize, page * pageSize)
-                    .map((i, idx) => (
-                      <tr key={i.id || idx} className="hover:bg-white/5">
-                        <td className="px-4 py-3">{i.rawMaterial?.name}</td>
-                        <td className="px-4 py-3">{i.rawMaterial?.unit}</td>
-                        <td className="px-4 py-3">{i.rawMaterial?.minStock}</td>
-                        <td className="px-4 py-3">{i.currentQuantity}</td>
-                        <td className="px-4 py-3 space-x-2"></td>
+                <tbody className="divide-y divide-slate-100 bg-white text-slate-700">
+                  {visibleItems.map((item) => {
+                    const minStock = item.rawMaterial?.minStock ?? 0;
+                    const isLow = item.currentQuantity <= minStock;
+                    return (
+                      <tr
+                        key={item.id ?? item.rawMaterialId}
+                        className="transition hover:bg-slate-50"
+                      >
+                        <td className="px-4 py-3 font-medium text-slate-900">
+                          {item.rawMaterial?.name || 'Sin nombre'}
+                        </td>
+                        <td className="px-4 py-3">
+                          {item.rawMaterial?.unit || 'Sin unidad'}
+                        </td>
+                        <td className="px-4 py-3">{minStock}</td>
+                        <td className="px-4 py-3">{item.currentQuantity}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`${pillClass} ${
+                              isLow
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-emerald-100 text-emerald-700'
+                            }`}
+                          >
+                            {isLow ? 'Stock bajo' : 'Saludable'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openMovement(item.rawMaterialId)}
+                              className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/15"
+                            >
+                              Registrar movimiento
+                            </button>
+                          </div>
+                        </td>
                       </tr>
-                    ))}
+                    );
+                  })}
                 </tbody>
               </table>
-              <div className="flex items-center justify-between mt-4 text-white/80">
-                <span className="text-sm">
-                  Página {page} de{' '}
-                  {Math.max(1, Math.ceil(items.length / pageSize))}
-                </span>
-                <div className="space-x-2">
-                  <button
-                    disabled={page === 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className="px-3 py-1 rounded-lg bg-white/10 border border-white/20 disabled:opacity-40"
-                  >
-                    Anterior
-                  </button>
-                  <button
-                    disabled={page >= Math.ceil(items.length / pageSize)}
-                    onClick={() => setPage((p) => p + 1)}
-                    className="px-3 py-1 rounded-lg bg-white/10 border border-white/20 disabled:opacity-40"
-                  >
-                    Siguiente
-                  </button>
-                </div>
+            </div>
+
+            <div className="flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+              <span>
+                Pagina {page} de {totalPages}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={page === 1}
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  className={`${secondaryButtonClass} disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  Anterior
+                </button>
+                <button
+                  type="button"
+                  disabled={page === totalPages}
+                  onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  className={`${secondaryButtonClass} disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  Siguiente
+                </button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+      </ModalFrame>
 
-        {/* Crear */}
-        <div
-          id="create-inv-modal"
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] hidden"
+      {mode === 'create' && (
+        <ModalFrame
+          title="Nueva materia prima"
+          description="Registra un insumo base para el control de ajustes y produccion."
+          onClose={closeForm}
+          width="md"
         >
-          <div className="bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl w-full max-w-2xl border border-white/20">
-            <div className="p-6 border-b border-white/10 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-white">
-                Crear Materia Prima
-              </h2>
-              <button
-                onClick={() => {
-                  const m = document.getElementById('create-inv-modal');
-                  m && m.classList.add('hidden');
-                  setCreating(false);
-                }}
-                className="text-white/70 hover:text-white text-2xl"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6">
-              <form
-                onSubmit={handleSubmit}
-                className="grid grid-cols-1 md:grid-cols-2 gap-4 text-white"
-              >
-                <div>
-                  <label className="block text-sm mb-1">Nombre</label>
-                  <input
-                    value={rawForm.name}
-                    onChange={(e) =>
-                      setRawForm((f) => ({ ...f, name: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1">Unidad</label>
-                  <input
-                    value={rawForm.unit}
-                    onChange={(e) =>
-                      setRawForm((f) => ({ ...f, unit: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1">Stock mínimo</label>
-                  <input
-                    type="number"
-                    value={rawForm.minStock}
-                    onChange={(e) =>
-                      setRawForm((f) => ({
-                        ...f,
-                        minStock: Number(e.target.value),
-                      }))
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
-                    required
-                  />
-                </div>
-                <div className="md:col-span-2 flex justify-end gap-2 mt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const m = document.getElementById('create-inv-modal');
-                      m && m.classList.add('hidden');
-                      setCreating(false);
-                    }}
-                    className="px-4 py-2 rounded-xl bg-gray-600 text-white hover:bg-gray-700"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-semibold shadow hover:brightness-110"
-                  >
-                    Crear
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-      {/* Movimiento */}
-      <div
-        id="movement-modal"
-        className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] hidden"
-      >
-        <div className="bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl w-full max-w-2xl border border-white/20">
-          <div className="p-6 border-b border-white/10 flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-white">
-              Registrar Movimiento
-            </h2>
-            <button
-              onClick={() => {
-                const m = document.getElementById('movement-modal');
-                m && m.classList.add('hidden');
-              }}
-              className="text-white/70 hover:text-white text-2xl"
-            >
-              ×
-            </button>
-          </div>
-          <div className="p-6">
-            <form
-              onSubmit={submitMovement}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4 text-white"
-            >
-              <div className="md:col-span-2">
-                <label className="block text-sm mb-1">Materia Prima</label>
-                <select
-                  value={moveForm.rawMaterialId}
-                  onChange={(e) =>
-                    setMoveForm((f) => ({
-                      ...f,
-                      rawMaterialId: e.target.value,
+          <form className="space-y-5" onSubmit={handleCreateRaw}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Nombre
+                </label>
+                <input
+                  value={rawForm.name}
+                  onChange={(event) =>
+                    setRawForm((prev) => ({ ...prev, name: event.target.value }))
+                  }
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Unidad
+                </label>
+                <input
+                  value={rawForm.unit}
+                  onChange={(event) =>
+                    setRawForm((prev) => ({ ...prev, unit: event.target.value }))
+                  }
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                  placeholder="Kg, Lt, unidad..."
+                  required
+                />
+              </div>
+              <div className="sm:col-span-2 flex flex-col gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Stock minimo
+                </label>
+                <input
+                  type="number"
+                  value={rawForm.minStock}
+                  onChange={(event) =>
+                    setRawForm((prev) => ({
+                      ...prev,
+                      minStock: Number(event.target.value),
                     }))
                   }
-                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                  min={0}
+                  required
+                />
+              </div>
+            </div>
+
+            <ModalFooter>
+              <span>El minimo ayuda a detectar alertas de reposicion.</span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={closeForm}
+                  className={secondaryButtonClass}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className={primaryButtonClass}>
+                  Crear materia prima
+                </button>
+              </div>
+            </ModalFooter>
+          </form>
+        </ModalFrame>
+      )}
+
+      {mode === 'movement' && (
+        <ModalFrame
+          title="Registrar movimiento"
+          description="Ajusta el inventario para reflejar recepciones, salidas o merma."
+          onClose={closeForm}
+          width="md"
+        >
+          <form className="space-y-5" onSubmit={handleRegisterMovement}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2 flex flex-col gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Materia prima
+                </label>
+                <select
+                  value={movementForm.rawMaterialId}
+                  onChange={(event) =>
+                    setMovementForm((prev) => ({
+                      ...prev,
+                      rawMaterialId: event.target.value,
+                    }))
+                  }
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                   required
                 >
-                  <option value="">Seleccionar materia prima</option>
+                  <option value="">Selecciona una opcion</option>
                   {items.map((item) => (
                     <option key={item.rawMaterialId} value={item.rawMaterialId}>
-                      {item.rawMaterial?.name} - {item.rawMaterial?.unit}
+                      {item.rawMaterial?.name} ({item.rawMaterial?.unit})
                     </option>
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm mb-1">Cantidad</label>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Cantidad
+                </label>
                 <input
                   type="number"
-                  value={moveForm.quantity}
-                  onChange={(e) =>
-                    setMoveForm((f) => ({
-                      ...f,
-                      quantity: Number(e.target.value),
+                  value={movementForm.quantity}
+                  onChange={(event) =>
+                    setMovementForm((prev) => ({
+                      ...prev,
+                      quantity: Number(event.target.value),
                     }))
                   }
-                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm mb-1">Tipo de movimiento</label>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Tipo de movimiento
+                </label>
                 <select
-                  value={moveForm.movementType}
-                  onChange={(e) =>
-                    setMoveForm((f) => ({
-                      ...f,
-                      movementType: e.target.value as any,
+                  value={movementForm.movementType}
+                  onChange={(event) =>
+                    setMovementForm((prev) => ({
+                      ...prev,
+                      movementType: event.target.value as 'In' | 'Out' | 'Waste',
                     }))
                   }
-                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                 >
-                  <option value="In">In</option>
-                  <option value="Out">Out</option>
-                  <option value="Waste">Waste</option>
+                  <option value="In">Entrada</option>
+                  <option value="Out">Salida</option>
+                  <option value="Waste">Merma</option>
                 </select>
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm mb-1">Fecha</label>
+              <div className="sm:col-span-2 flex flex-col gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Fecha
+                </label>
                 <input
                   type="datetime-local"
-                  value={new Date(moveForm.date).toISOString().slice(0, 16)}
-                  onChange={(e) => {
-                    // convertir local a ISO UTC aproximado
-                    const val = e.target.value; // YYYY-MM-DDTHH:mm
-                    const iso = new Date(val).toISOString();
-                    setMoveForm((f) => ({ ...f, date: iso }));
-                  }}
-                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20"
+                  value={toLocalInputValue(movementForm.date)}
+                  onChange={(event) =>
+                    setMovementForm((prev) => ({
+                      ...prev,
+                      date: fromLocalInputValue(event.target.value),
+                    }))
+                  }
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                 />
               </div>
-              <div className="md:col-span-2 flex justify-end gap-2 mt-2">
+            </div>
+
+            <ModalFooter>
+              <span>
+                Las entradas suman stock, las salidas lo disminuyen y la merma
+                registra desperdicio.
+              </span>
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    const m = document.getElementById('movement-modal');
-                    m && m.classList.add('hidden');
-                  }}
-                  className="px-4 py-2 rounded-xl bg-gray-600 text-white hover:bg-gray-700"
+                  onClick={closeForm}
+                  className={secondaryButtonClass}
                 >
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 text-slate-900 font-semibold shadow hover:brightness-110"
-                >
-                  Guardar
+                <button type="submit" className={primaryButtonClass}>
+                  Guardar movimiento
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
+            </ModalFooter>
+          </form>
+        </ModalFrame>
+      )}
+    </>
   );
 }

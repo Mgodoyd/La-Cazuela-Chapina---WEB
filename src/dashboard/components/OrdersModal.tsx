@@ -1,206 +1,261 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DashboardOrderService } from '../services/orderService';
 import toast from 'react-hot-toast';
 import type { DashboardOrder } from '../types/dashboardOrder';
 import type { OrdersModalProps } from '../types/modals';
+import { ModalFrame, ModalFooter } from './ModalFrame';
+
+const secondaryButtonClass =
+  'inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/10';
+
+const primaryButtonClass =
+  'inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/15';
+
+const statusPillClass =
+  'inline-flex items-center justify-center rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide';
+
+const formatTotal = (order: DashboardOrder) => {
+  const total =
+    order.items?.reduce(
+      (sum, item) => sum + item.unitPrice * item.quantity,
+      0
+    ) ?? 0;
+  return total.toLocaleString('es-GT', {
+    style: 'currency',
+    currency: 'GTQ',
+    minimumFractionDigits: 2,
+  });
+};
 
 export default function OrdersModal({ onClose }: OrdersModalProps) {
   const [orders, setOrders] = useState<DashboardOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const pageSize = 5;
   const [editing, setEditing] = useState<DashboardOrder | null>(null);
+  const pageSize = 6;
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await DashboardOrderService.getOrders();
-        setOrders(data);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    void refresh();
   }, []);
 
-  const startEdit = (o: DashboardOrder) => setEditing(o);
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      const data = await DashboardOrderService.getOrders();
+      setOrders(data);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalOrders = orders.length;
+  const totalPages = Math.max(1, Math.ceil(totalOrders / pageSize));
+
+  const visibleOrders = useMemo(
+    () => orders.slice((page - 1) * pageSize, page * pageSize),
+    [orders, page, pageSize]
+  );
+
+  const handleStatusChange = (status: string) => {
+    setEditing((prev) => (prev ? { ...prev, status } : prev));
+  };
+
   const submitEdit = async () => {
     if (!editing) return;
     try {
       const ok = await DashboardOrderService.updateOrder(editing.id, editing);
       if (ok) {
         toast.success('Pedido actualizado');
-        const data = await DashboardOrderService.getOrders();
-        setOrders(data);
+        await refresh();
         setEditing(null);
       } else {
         toast.error('No se pudo actualizar');
       }
-    } catch (e: any) {
-      toast.error(e?.message || 'Error desconocido');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Error desconocido';
+      toast.error(message);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl w-full max-w-5xl border border-white/20">
-        <div className="p-6 border-b border-white/10 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-white">Pedidos</h2>
-          <button
-            onClick={onClose}
-            className="text-white/70 hover:text-white text-2xl"
-          >
-            ×
-          </button>
-        </div>
-        <div className="p-6">
-          {loading ? (
-            <div className="text-center text-gray-300">Cargando...</div>
-          ) : orders.length === 0 ? (
-            <div className="text-center text-gray-300">No hay pedidos</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-white/10 text-white">
-                <thead className="bg-white/5">
+    <>
+      <ModalFrame
+        title="Pedidos"
+        description="Consulta el estado de las ordenes recientes y realiza ajustes rápidos."
+        onClose={onClose}
+        width="xl"
+      >
+        {loading ? (
+          <div className="flex min-h-[220px] items-center justify-center text-sm text-slate-500">
+            Cargando pedidos...
+          </div>
+        ) : totalOrders === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 py-12 text-center text-sm text-slate-500">
+            No hay pedidos registrados por ahora.
+          </div>
+        ) : (
+          <div className="space-y-5">
+            <div className="overflow-x-auto rounded-2xl border border-slate-200">
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-50 text-slate-500">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
-                      ID
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
+                    <th className="px-4 py-3 text-left font-semibold">ID</th>
+                    <th className="px-4 py-3 text-left font-semibold">
                       Estado
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
-                      Usuario
+                    <th className="px-4 py-3 text-left font-semibold">
+                      Cliente
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
+                    <th className="px-4 py-3 text-left font-semibold">
                       Items
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
+                    <th className="px-4 py-3 text-left font-semibold">
                       Productos
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
+                    <th className="px-4 py-3 text-left font-semibold">
                       Total
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
+                    <th className="px-4 py-3 text-left font-semibold">
                       Fecha
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold">
+                      Acciones
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/10">
-                  {orders
-                    .slice((page - 1) * pageSize, page * pageSize)
-                    .map((o, idx) => (
-                      <tr key={o.id || idx} className="hover:bg-white/5">
-                        <td className="px-4 py-3 font-mono text-xs">
-                          {o.id?.slice(0, 8)}...
-                        </td>
-                        <td className="px-4 py-3">{o.status}</td>
-                        <td className="px-4 py-3">{o.userId}</td>
-                        <td className="px-4 py-3">{o.items?.length || 0}</td>
-                        <td className="px-4 py-3 truncate max-w-[240px]">
-                          {(o.items || [])
-                            .map((i) => i.productName || i.productId)
-                            .join(', ')}
-                        </td>
-                        <td className="px-4 py-3">
-                          $
-                          {(o.items || [])
-                            .reduce((s, i) => s + i.unitPrice * i.quantity, 0)
-                            .toFixed(2)}
-                        </td>
-                        <td className="px-4 py-3">
-                          {o.createdAt
-                            ? new Date(o.createdAt).toLocaleString()
-                            : '-'}
-                        </td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => startEdit(o)}
-                            className="px-3 py-1 rounded-lg bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 text-slate-900 font-semibold shadow hover:brightness-110"
-                          >
-                            Editar
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                <tbody className="divide-y divide-slate-100 bg-white text-slate-700">
+                  {visibleOrders.map((order) => (
+                    <tr
+                      key={order.id ?? order.createdAt}
+                      className="transition hover:bg-slate-50"
+                    >
+                      <td className="px-4 py-3 font-mono text-xs text-slate-500">
+                        {order.id?.slice(0, 10) ?? '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`${statusPillClass} ${
+                            order.status === 'Terminada'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : order.status === 'En Progreso'
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-slate-200 text-slate-600'
+                          }`}
+                        >
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {order.userId || 'Cliente'}
+                      </td>
+                      <td className="px-4 py-3">{order.items?.length ?? 0}</td>
+                      <td className="px-4 py-3 max-w-[260px] truncate text-slate-600">
+                        {order.items
+                          ?.map((item) => item.productName || item.productId)
+                          .join(', ') || '—'}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-slate-900">
+                        {formatTotal(order)}
+                      </td>
+                      <td className="px-4 py-3">
+                        {order.createdAt
+                          ? new Date(order.createdAt).toLocaleString('es-GT', {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => setEditing(order)}
+                          className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/15"
+                        >
+                          Editar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
-              <div className="flex items-center justify-between mt-4 text-white/80">
-                <span className="text-sm">
-                  Página {page} de{' '}
-                  {Math.max(1, Math.ceil(orders.length / pageSize))}
-                </span>
-                <div className="space-x-2">
-                  <button
-                    disabled={page === 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className="px-3 py-1 rounded-lg bg-white/10 border border-white/20 disabled:opacity-40"
-                  >
-                    Anterior
-                  </button>
-                  <button
-                    disabled={page >= Math.ceil(orders.length / pageSize)}
-                    onClick={() => setPage((p) => p + 1)}
-                    className="px-3 py-1 rounded-lg bg-white/10 border border-white/20 disabled:opacity-40"
-                  >
-                    Siguiente
-                  </button>
-                </div>
-              </div>
             </div>
-          )}
-        </div>
-      </div>
-      {editing && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
-          <div className="bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl w-full max-w-2xl border border-white/20">
-            <div className="p-6 border-b border-white/10 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-white">Editar Pedido</h2>
-              <button
-                onClick={() => setEditing(null)}
-                className="text-white/70 hover:text-white text-2xl"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 text-white space-y-4">
-              <div>
-                <label className="block text-sm mb-1">Estado</label>
-                <select
-                  value={editing.status}
-                  onChange={(e) =>
-                    setEditing((prev) =>
-                      prev ? { ...prev, status: e.target.value } : prev
-                    )
-                  }
-                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white"
-                >
-                  <option value="Solicitada">Solicitada</option>
-                  <option value="En Progreso">En Progreso</option>
-                  <option value="Terminada">Terminada</option>
-                </select>
-              </div>
-              <div className="text-sm opacity-80">
-                Solo se permite modificar el estado del pedido.
-              </div>
-              <div className="flex justify-end gap-2">
+
+            <div className="flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+              <span>
+                Pagina {page} de {totalPages}
+              </span>
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setEditing(null)}
-                  className="px-4 py-2 rounded-xl bg-gray-600 text-white hover:bg-gray-700"
+                  type="button"
+                  disabled={page === 1}
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  className={`${secondaryButtonClass} disabled:cursor-not-allowed disabled:opacity-50`}
                 >
-                  Cancelar
+                  Anterior
                 </button>
                 <button
-                  onClick={submitEdit}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-semibold shadow hover:brightness-110"
+                  type="button"
+                  disabled={page === totalPages}
+                  onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  className={`${secondaryButtonClass} disabled:cursor-not-allowed disabled:opacity-50`}
                 >
-                  Guardar
+                  Siguiente
                 </button>
               </div>
             </div>
           </div>
-        </div>
+        )}
+      </ModalFrame>
+
+      {editing && (
+        <ModalFrame
+          title="Editar pedido"
+          description="Actualiza el estado operativo del pedido seleccionado."
+          onClose={() => setEditing(null)}
+          width="md"
+        >
+          <div className="space-y-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Estado del pedido
+              </label>
+              <select
+                value={editing.status}
+                onChange={(event) => handleStatusChange(event.target.value)}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+              >
+                <option value="Solicitada">Solicitada</option>
+                <option value="En Progreso">En Progreso</option>
+                <option value="Terminada">Terminada</option>
+              </select>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
+              Solo se permite modificar el estado del pedido. Los detalles del
+              cliente y productos permanecen inalterados.
+            </div>
+          </div>
+
+          <ModalFooter>
+            <span>
+              Pedido #{editing.id?.slice(0, 10) ?? '-'} -{' '}
+              {editing.userId || 'Cliente'}
+            </span>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className={secondaryButtonClass}
+              >
+                Cancelar
+              </button>
+              <button type="button" onClick={submitEdit} className={primaryButtonClass}>
+                Guardar cambios
+              </button>
+            </div>
+          </ModalFooter>
+        </ModalFrame>
       )}
-    </div>
+    </>
   );
 }
