@@ -20,16 +20,9 @@ import type { DashboardOrder } from '../types/dashboardOrder';
 import type { DashboardModalProps } from '../types/modals';
 import { ModalFrame } from './ModalFrame';
 
-type AggregatedPoint = { label: string; value: number };
 
-const CHART_COLORS = [
-  '#0f172a',
-  '#2563eb',
-  '#f59e0b',
-  '#10b981',
-  '#8b5cf6',
-  '#f97316',
-];
+//colores para los graficos
+const CHART_COLORS = ['#0f172a', '#2563eb', '#f59e0b', '#10b981', '#8b5cf6', '#f97316'];
 
 const chartsPerPage = 2;
 
