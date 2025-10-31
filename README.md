@@ -289,3 +289,33 @@ Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
 **Desarrollado con ❤️ para La Cazuela Chapina**
 
 *Última actualización: Agosto 2025*
+
+## 📎 Anexos
+
+Imágenes referenciadas desde `./Anexos/`:
+
+### Dashboards
+
+![](./Anexos/dash1.png)
+![](./Anexos/dash2.png)
+![](./Anexos/dash3.png)
+![](./Anexos/dash4.png)
+![](./Anexos/dash5.png)
+![](./Anexos/dash6.png)
+![](./Anexos/dash7.png)
+![](./Anexos/dash8.png)
+![](./Anexos/dash9.png)
+![](./Anexos/dash10.png)
+![](./Anexos/dash11.png)
+
+### E-commerce
+
+![](./Anexos/eco1.png)
+![](./Anexos/eco2.png)
+![](./Anexos/eco3.png)
+![](./Anexos/eco4.png)
+![](./Anexos/eco5.png)
+![](./Anexos/eco6.png)
+![](./Anexos/eco7.png)
+![](./Anexos/eco8.png)
+![](./Anexos/eco9.png)

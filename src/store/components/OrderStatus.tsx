@@ -12,7 +12,7 @@ export default function OrderStatus({ onClose }: OrderStatusProps) {
   const [products, setProducts] = useState<Record<string, Product>>({});
   const [loading, setLoading] = useState(false);
 
-  const userId = localStorage.getItem('id') || '';
+  const userId = localStorage.getItem('cazuela_user') || '';
 
   useEffect(() => {
     if (!userId) {
